@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       retryDelay:3000,
       retryAttempts:10
     }),
-    UsersModule
+    UsersModule,
+    CoursesModule
   ],
   controllers: [],
   providers: [],
