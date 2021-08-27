@@ -8,6 +8,12 @@ export class UnitedEntity implements United{
     @PrimaryGeneratedColumn()
     id:number;
 
+    @Column()
+    schoolCode:string;
+
+    @Column()
+    schoolName:string;
+
     @OneToMany(() => CourseEntity, course => course.united)
     course: CourseEntity[];
 

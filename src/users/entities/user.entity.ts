@@ -1,9 +1,10 @@
-import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn} from 'typeorm';
+import { CourseEntity } from 'src/courses/entities/course.entity';
+import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn} from 'typeorm';
 import { User } from '../interfaces/user.interface';
 
 @Entity()
 export class UserEntity implements User{
-
+    
     @PrimaryGeneratedColumn()
     id:number;
 
@@ -12,6 +13,10 @@ export class UserEntity implements User{
 
     @Column()
     password:string;
+
+    @OneToOne(() => CourseEntity)
+    @JoinColumn()
+    course: CourseEntity;
 
     @CreateDateColumn({
         name: 'creation_at',

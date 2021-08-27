@@ -8,6 +8,36 @@ export class StudentEntity implements Student{
     @PrimaryGeneratedColumn()
     id:number;
 
+    @Column()
+    rude:string;
+
+    @Column()
+    credential:string;
+
+    @Column()
+    name:string;
+
+    @Column()
+    gender:string;
+
+    @Column()
+    dateOfBirth:string;
+    
+    @Column()
+    country:string;
+
+    @Column()
+    departament:string;
+
+    @Column()
+    province:string;
+
+    @Column()
+    locality:string;
+
+    @Column()
+    registration:string;
+
     @ManyToOne(() => CourseEntity, course => course.student)
     course: CourseEntity;
 

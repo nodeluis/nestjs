@@ -6,14 +6,15 @@ import { isEmpty } from 'src/utils/util';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { DataStoredInToken, TokenData, User } from '../interfaces/user.interface';
+import { CourseEntity } from 'src/courses/entities/course.entity';
+import { AsignationDto } from '../dto/asignation.dto';
 
 @Injectable()
 export class UsersService {
 
-    public user=UserEntity;
-
     constructor(
         @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
+        @InjectRepository(CourseEntity) private courseRepository: Repository<CourseEntity>,
       ) {}
 
     public async findAll():Promise<User[]>{
@@ -77,6 +78,29 @@ export class UsersService {
 
     public createCookie(tokenData: TokenData): string {
         return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
+    }
+
+    public async asignationUser({courseId, userId} : AsignationDto): Promise<UserEntity> {
+
+        if(isEmpty(courseId)||isEmpty(userId))throw new HttpException( `No se envió la data`,400);
+
+        const courseEnt: CourseEntity =await this.courseRepository.findOne({where:{id:courseId}});
+        if(!courseEnt)throw new HttpException( `No se encontró el curso`,409);
+        if(courseEnt.asignated)throw new HttpException( `Ya se asinó este curso, Si desea corregir su asignacion pongase en contacto con el area de sistemas`,400);
+        courseEnt.asignated=true;
+        
+
+        const userEnt: UserEntity=await this.userRepository.findOne({where:{id:userId}});
+        if(!userEnt)throw new HttpException( `No se encontró el usuario`,409);
+        userEnt.course=courseEnt;
+
+        const resultCourse=await this.courseRepository.update(courseEnt.id,courseEnt);
+        if(!resultCourse)throw new HttpException( `Error al actualizar el curso`,409);
+
+        const resultuser=await this.userRepository.update(userEnt.id,userEnt);
+        if(!resultuser)throw new HttpException( `Error al actualizar el usuario`,409);
+
+        return userEnt;
     }
 
 }

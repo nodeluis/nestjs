@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpException, Param, Post, Put } from '@nestjs/common';
+import { AsignationDto } from '../dto/asignation.dto';
 import { UserDto } from '../dto/user.dto';
 import { User } from '../interfaces/user.interface';
 import { UsersService } from '../services/users.service';
@@ -65,6 +66,18 @@ export class UsersController {
             const result:User=await this.userService.deleteUser(id);
             if(!result)throw new HttpException('Error al eliminar',409);
             return {message:'Se eliminó el usuario', result};
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @Post('asignation')
+    async asignationUser(@Body() body:AsignationDto){
+        try {
+            
+            const result=await this.userService.asignationUser(body);
+            if(!result)throw new HttpException('Error al devolver el usuario',409);
+            return {message:'Se asignó un curso al usuario', user:result};
         } catch (error) {
             throw new HttpException(error,409);
         }

@@ -10,24 +10,17 @@ export class CourseEntity implements Course{
     id:number;
 
     @Column()
-    rude:string;
+    turn:string;
 
     @Column()
-    credential:string;
+    yearOfSchoollarity:number;
 
     @Column()
-    name:string;
+    group:string;
 
-
-    @Column()
-    gender:String;
-
-    @Column()
-    dateOfBirth:Date;
-    
-    @Column()
-    registration:string;
-
+    @Column({default:false})
+    asignated:boolean;
+   
     @ManyToOne(() => UnitedEntity, united => united.course)
     united: UnitedEntity;
 
