@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as pdfParse from 'pdf-parse';
 import { Repository } from 'typeorm';
 import { InsertStudentDto } from '../dto/insertStudent.dto';
+import { UpdateStudentsDto } from '../dto/updateCourse.dto';
 import { CourseEntity } from '../entities/course.entity';
 import { StudentEntity } from '../entities/student.entity';
 import { UnitedEntity } from '../entities/united.entity';
@@ -120,6 +121,38 @@ export class CoursesService {
         await this.courseRepository.save(courseEnt);
 
         return courseEnt;
+    }
+
+    public async findCoursesUnity(id:number):Promise<Course[]>{
+
+        const unitedEnt=await this.unitedRepository.findOne(id);
+        
+        const coursesEnt:Course[]=await this.courseRepository.find({where:{united:unitedEnt}});
+
+        return coursesEnt;
+    }
+
+    public async findCourseStudents(id:number):Promise<Student[]>{
+        
+        const courseEnt=await this.courseRepository.findOne(id);
+        
+        const studentEnt:Student[]=await this.studentRepository.find({where:{course:courseEnt}});
+
+        return studentEnt;
+    }
+
+    public async updateCourse({students}:UpdateStudentsDto):Promise<Student[]>{
+        
+        const studentsEnt:Student[]=[];
+        for (let x = 0; x < students.length; x++) {
+            const element = students[x];
+            const studentEnt=await this.studentRepository.findOne(element.id);
+            studentEnt.paid=element.paid;
+            studentsEnt.push(studentEnt);
+            await this.studentRepository.update(element.id,studentEnt);
+        }
+
+        return studentsEnt;
     }
 
 }

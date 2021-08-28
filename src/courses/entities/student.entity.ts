@@ -38,6 +38,9 @@ export class StudentEntity implements Student{
     @Column()
     registration:string;
 
+    @Column({default:false})
+    paid:boolean;
+
     @ManyToOne(() => CourseEntity, course => course.student)
     course: CourseEntity;
 

@@ -8,6 +8,9 @@ import { UserEntity } from '../entities/user.entity';
 import { DataStoredInToken, TokenData, User } from '../interfaces/user.interface';
 import { CourseEntity } from 'src/courses/entities/course.entity';
 import { AsignationDto } from '../dto/asignation.dto';
+import { Course } from 'src/courses/interfaces/courses.interface';
+import { Student } from 'src/courses/interfaces/student.interface';
+import { StudentEntity } from 'src/courses/entities/student.entity';
 
 @Injectable()
 export class UsersService {
@@ -15,6 +18,7 @@ export class UsersService {
     constructor(
         @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
         @InjectRepository(CourseEntity) private courseRepository: Repository<CourseEntity>,
+        @InjectRepository(StudentEntity) private studentRepository: Repository<StudentEntity>,
       ) {}
 
     public async findAll():Promise<User[]>{
@@ -80,7 +84,7 @@ export class UsersService {
         return `Authorization=${tokenData.token}; HttpOnly; Max-Age=${tokenData.expiresIn};`;
     }
 
-    public async asignationUser({courseId, userId} : AsignationDto): Promise<UserEntity> {
+    public async asignationUser({courseId, userId} : AsignationDto): Promise<Course> {
 
         if(isEmpty(courseId)||isEmpty(userId))throw new HttpException( `No se envió la data`,400);
 
@@ -100,7 +104,19 @@ export class UsersService {
         const resultuser=await this.userRepository.update(userEnt.id,userEnt);
         if(!resultuser)throw new HttpException( `Error al actualizar el usuario`,409);
 
-        return userEnt;
+        return courseEnt;
+    }
+
+    public async myCourse(id:number): Promise<Student[]> {
+
+        if(isEmpty(id))throw new HttpException( `No se envió la data`,400);
+
+        const findUser=await this.userRepository.findOne(id);
+
+        const findCourse=findUser.course;
+
+        const findStudents=await this.studentRepository.find({where:{course:findCourse}});
+        return findStudents;
     }
 
 }
