@@ -1,3 +1,4 @@
+import { UserEntity } from 'src/users/entities/user.entity';
 import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany} from 'typeorm';
 import { Course } from '../interfaces/courses.interface';
 import { StudentEntity } from './student.entity';
@@ -26,6 +27,9 @@ export class CourseEntity implements Course{
 
     @OneToMany(() => StudentEntity, student => student.course)
     student: StudentEntity[];
+
+    @ManyToOne(() => UserEntity, user => user.course)
+    user: UserEntity;
 
     @CreateDateColumn({
         name: 'created_at',

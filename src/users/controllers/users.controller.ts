@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, HttpException, Param, Post, Put } from '@nestjs/common';
-import { Course } from 'src/courses/interfaces/courses.interface';
+import { ApiParam } from '@nestjs/swagger';
 import { AsignationDto } from '../dto/asignation.dto';
 import { UserDto } from '../dto/user.dto';
+import { CoursesResponse } from '../interfaces/responses.interface';
 import { User } from '../interfaces/user.interface';
 import { UsersService } from '../services/users.service';
 
@@ -26,7 +27,8 @@ export class UsersController {
         }
     }
 
-    @Get(':id')
+    @Get('get/:id')
+    @ApiParam({name: 'id', required: true, description: 'Parámetro para buscar un usuario' })
     async findOne(@Param('id') id:number){
         try {
             const user=await this.userService.findOne(id);
@@ -71,7 +73,7 @@ export class UsersController {
             throw new HttpException(error,409);
         }
     }
-
+    
     @Post('asignation')
     async asignationUser(@Body() body:AsignationDto){
         try {
@@ -84,11 +86,12 @@ export class UsersController {
     }
 
     @Get(':id')
+    @ApiParam({name: 'id', required: true, description: 'Id del usuario para buscar estudiantes y cursos asignados a al id' })
     async myCourse(@Param('id') id:number){
         try {
-            const result=await this.userService.myCourse(id);
-            if(!result)throw new HttpException('Error al devolver el usuario',409);
-            return {message:'Estudiantes asignados a la id '+id, students:result};
+            const result: CoursesResponse[]=await this.userService.myCourse(id);
+            if(!result)throw new HttpException('Error al devolver la respuesta',409);
+            return {message:'Cursos y estudiantes del usuario '+id, courses:result};
         } catch (error) {
             throw new HttpException(error,409);
         }

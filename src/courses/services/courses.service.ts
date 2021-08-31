@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs';
 import * as pdfParse from 'pdf-parse';
@@ -126,6 +126,8 @@ export class CoursesService {
     public async findCoursesUnity(id:number):Promise<Course[]>{
 
         const unitedEnt=await this.unitedRepository.findOne(id);
+        if(!unitedEnt)throw new HttpException('No se encontró la Unidad educativa',409);
+        
         
         const coursesEnt:Course[]=await this.courseRepository.find({where:{united:unitedEnt}});
 
@@ -135,7 +137,8 @@ export class CoursesService {
     public async findCourseStudents(id:number):Promise<Student[]>{
         
         const courseEnt=await this.courseRepository.findOne(id);
-        
+        if(!courseEnt)throw new HttpException('No se encontró el curso',409);
+
         const studentEnt:Student[]=await this.studentRepository.find({where:{course:courseEnt}});
 
         return studentEnt;

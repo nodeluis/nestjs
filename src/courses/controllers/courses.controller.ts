@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpException, Param, Post, Put } from '@nestjs/common';
+import { ApiParam } from '@nestjs/swagger';
 import { InsertStudentDto } from '../dto/insertStudent.dto';
 import { UpdateStudentsDto } from '../dto/updateCourse.dto';
 import { Course } from '../interfaces/courses.interface';
@@ -63,6 +64,7 @@ export class CoursesController {
         }
     }
 
+    @ApiParam({name: 'id', required: true, description: 'Id de la Escuela para buscar todos los cursos pertenecientes a la Unidad Educativa' })
     @Get('united/:id')
     async findCoursesUnity(@Param('id') id:number){
         try {
@@ -74,6 +76,7 @@ export class CoursesController {
         }
     }
 
+    @ApiParam({name: 'id', required: true, description: 'Id del curso para buscar los estudiantes pertenecientes al curso' })
     @Get('students/:id')
     async findCourseStudents(@Param('id') id:number){
         try {

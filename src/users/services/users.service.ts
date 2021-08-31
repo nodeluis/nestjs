@@ -11,6 +11,7 @@ import { AsignationDto } from '../dto/asignation.dto';
 import { Course } from 'src/courses/interfaces/courses.interface';
 import { Student } from 'src/courses/interfaces/student.interface';
 import { StudentEntity } from 'src/courses/entities/student.entity';
+import { CoursesResponse } from '../interfaces/responses.interface';
 
 @Injectable()
 export class UsersService {
@@ -41,7 +42,7 @@ export class UsersService {
         const findUser=await this.userRepository.findOne({ where: { user:userData.user } });
         if (findUser) throw new HttpException( `Ya existe ${userData.user} en la base de datos`,409);
         const hashedPassword =await bcrypt.hash(userData.password, 10);
-        const createUserData: User = await this.userRepository.save({ ...userData,password:hashedPassword});
+        const createUserData: User = await this.userRepository.save({ ...userData,course:[],password:hashedPassword});
         return createUserData;
 
     }
@@ -88,15 +89,14 @@ export class UsersService {
 
         if(isEmpty(courseId)||isEmpty(userId))throw new HttpException( `No se envió la data`,400);
 
+        const userEnt: UserEntity=await this.userRepository.findOne({where:{id:userId}});
+        if(!userEnt)throw new HttpException( `No se encontró el usuario`,409);
+
         const courseEnt: CourseEntity =await this.courseRepository.findOne({where:{id:courseId}});
         if(!courseEnt)throw new HttpException( `No se encontró el curso`,409);
         if(courseEnt.asignated)throw new HttpException( `Ya se asinó este curso, Si desea corregir su asignacion pongase en contacto con el area de sistemas`,400);
+        courseEnt.user=userEnt;
         courseEnt.asignated=true;
-        
-
-        const userEnt: UserEntity=await this.userRepository.findOne({where:{id:userId}});
-        if(!userEnt)throw new HttpException( `No se encontró el usuario`,409);
-        userEnt.course=courseEnt;
 
         const resultCourse=await this.courseRepository.update(courseEnt.id,courseEnt);
         if(!resultCourse)throw new HttpException( `Error al actualizar el curso`,409);
@@ -107,16 +107,31 @@ export class UsersService {
         return courseEnt;
     }
 
-    public async myCourse(id:number): Promise<Student[]> {
+    public async myCourse(id:number): Promise<CoursesResponse[]> {
 
         if(isEmpty(id))throw new HttpException( `No se envió la data`,400);
 
-        const findUser=await this.userRepository.findOne(id);
+        const findUser: UserEntity=await this.userRepository.findOne(id);        
+        if(!findUser)throw new HttpException( `Error no se encontró el usuario`,409);
 
-        const findCourse=findUser.course;
+        const courseEnt: CourseEntity[]=await this.courseRepository.find({where:{user:findUser}});
+        if(!courseEnt)throw new HttpException( `Error no se encontro los cursos`,409);
 
-        const findStudents=await this.studentRepository.find({where:{course:findCourse}});
-        return findStudents;
+        const cour:CoursesResponse[]=[];
+        for (let z = 0; z < courseEnt.length; z++) {
+            const element: CourseEntity = courseEnt[z];
+            const studentEnt:Student[] = await this.studentRepository.find({where:{course:element}});
+            
+            cour.push({
+                group:element.group,
+                turn:element.turn,
+                yearOfSchoollarity:element.yearOfSchoollarity,
+                students:studentEnt
+            });
+            
+        }
+
+        return cour;
     }
 
 }
