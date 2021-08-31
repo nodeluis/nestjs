@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, HttpException, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, Param, Post, Put, Res} from '@nestjs/common';
 import { ApiParam } from '@nestjs/swagger';
 import { AsignationDto } from '../dto/asignation.dto';
 import { UserDto } from '../dto/user.dto';
 import { CoursesResponse } from '../interfaces/responses.interface';
 import { User } from '../interfaces/user.interface';
 import { UsersService } from '../services/users.service';
+import { Request, Response } from 'express';
 
 @Controller('users')
 export class UsersController {
@@ -80,6 +81,28 @@ export class UsersController {
             const result=await this.userService.asignationUser(body);
             if(!result)throw new HttpException('Error al devolver el usuario',409);
             return {message:'Se asignó un curso al usuario', course:result};
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @Post('auth')
+    async auth(@Body() body:UserDto, @Res() res: Response){
+        try {
+            const {cookie,findUser}=await this.userService.auth(body);
+            if(!findUser)throw new HttpException('Error en la respuesta',409);
+            res.cookie('Set-Cookie', [cookie]); // Using express res object.
+            return res.send({ data: {...findUser,password:''}, message: 'Bienvenido' });
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @Post('logout')
+    async logOut(@Res() res: Response){
+        try {
+            res.cookie('Set-Cookie', ['Authorization=; Max-age=0']); // Using express res object.
+            return res.send({ message: 'Salió' });
         } catch (error) {
             throw new HttpException(error,409);
         }

@@ -1,7 +1,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { isEmpty } from 'src/utils/util';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
@@ -12,6 +12,7 @@ import { Course } from 'src/courses/interfaces/courses.interface';
 import { Student } from 'src/courses/interfaces/student.interface';
 import { StudentEntity } from 'src/courses/entities/student.entity';
 import { CoursesResponse } from '../interfaces/responses.interface';
+import { UserDto } from '../dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -72,6 +73,22 @@ export class UsersService {
 
     }
 
+    public async auth({user,password}:UserDto):Promise<{ cookie: string; findUser: User }>{
+        if (isEmpty(user)||isEmpty(password)) throw new HttpException('No se envió la data',409);
+        
+        const findUser: User = await this.userRepository.findOne({ where: { user} });
+        
+        if (!findUser) throw new HttpException('Error credenciales incorrectas',409);
+
+        const isPasswordMatching: boolean = await bcrypt.compare(password, findUser.password);  
+        if (!isPasswordMatching) throw new HttpException('Error credenciales incorrectas',409);        
+
+        const tokenData = this.createToken(findUser);
+        const cookie = this.createCookie(tokenData);
+        
+        return { cookie, findUser };
+
+    }
 
     public createToken(user: User): TokenData {
         const dataStoredInToken: DataStoredInToken = { id: user.id };
