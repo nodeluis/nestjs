@@ -23,7 +23,7 @@ import { CoursesModule } from './courses/courses.module';
       port: 5432,
       username: 'postgres',
       password: 'TN5NACBQFBLA0NUJ8OA1',
-      database: 'bono_estudiantil',
+      database: 'bono_estudiantil_2021',
       entities: ['dist/**/*.entity{.ts,.js}'],
       synchronize: false,
       retryDelay:3000,

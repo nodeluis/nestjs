@@ -4,7 +4,7 @@
     "port": 5432,
     "username": "postgres",
     "password": "TN5NACBQFBLA0NUJ8OA1",
-    "database": "bono_estudiantil",
+    "database": "bono_estudiantil_2021",
     "entities": ["src/**/*.entity.ts"],
     "synchronize": false,
     "migrationsTableName": "migrations",
