@@ -19,11 +19,11 @@ import { CoursesModule } from './courses/courses.module';
     }),*/
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: '190.129.25.205',
+      host: '34.133.240.184',
       port: 5432,
       username: 'postgres',
-      password: 'TN5NACBQFBLA0NUJ8OA1',
-      database: 'bono_estudiantil_2021',
+      password: 'AfAFAFFl3xCFHJLd',
+      database: 'postgres',
       entities: ['dist/**/*.entity{.ts,.js}'],
       synchronize: false,
       retryDelay:3000,
