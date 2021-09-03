@@ -9,7 +9,7 @@ export class InsertStudentDto{
 
     @ApiProperty()
     @IsNotEmpty()
-    credential:string;
+    identification:string;
 
     @ApiProperty()
     @IsNotEmpty()
@@ -29,7 +29,7 @@ export class InsertStudentDto{
 
     @ApiProperty()
     @IsNotEmpty()
-    departament:string;
+    department:string;
 
     @ApiProperty()
     @IsNotEmpty()
@@ -43,6 +43,10 @@ export class InsertStudentDto{
     @IsNotEmpty()
     registration:string;
 
+    @ApiProperty()
+    @IsNotEmpty()
+    pdfNumber:number;
+
     //course
     @ApiProperty()
     @IsNotEmpty()
@@ -50,11 +54,15 @@ export class InsertStudentDto{
 
     @ApiProperty()
     @IsNotEmpty()
-    yearOfSchoollarity:number;
+    grade:string;
 
     @ApiProperty()
     @IsNotEmpty()
     group:string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    level:string;
 
     //college
     @ApiProperty()
@@ -64,5 +72,9 @@ export class InsertStudentDto{
     @ApiProperty()
     @IsNotEmpty()
     schoolName:string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    year:number;
     
 }

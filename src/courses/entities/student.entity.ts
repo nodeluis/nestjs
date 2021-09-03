@@ -12,10 +12,13 @@ export class StudentEntity implements Student{
     rude:string;
 
     @Column()
-    credential:string;
+    identification:string;
 
     @Column()
     name:string;
+
+    @Column()
+    pdfNumber:number;
 
     @Column()
     gender:string;
@@ -27,7 +30,7 @@ export class StudentEntity implements Student{
     country:string;
 
     @Column()
-    departament:string;
+    department:string;
 
     @Column()
     province:string;

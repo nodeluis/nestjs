@@ -14,6 +14,9 @@ export class UnitedEntity implements United{
     @Column()
     schoolName:string;
 
+    @Column()
+    year:number;
+
     @OneToMany(() => CourseEntity, course => course.united)
     course: CourseEntity[];
 

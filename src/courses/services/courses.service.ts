@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as pdfParse from 'pdf-parse';
 import { Repository } from 'typeorm';
 import { InsertStudentDto } from '../dto/insertStudent.dto';
+import { UnitedsDto } from '../dto/post.dto';
 import { UpdateStudentsDto } from '../dto/updateCourse.dto';
 import { CourseEntity } from '../entities/course.entity';
 import { StudentEntity } from '../entities/student.entity';
@@ -11,7 +12,8 @@ import { UnitedEntity } from '../entities/united.entity';
 import { Course } from '../interfaces/courses.interface';
 import { Student } from '../interfaces/student.interface';
 import { United } from '../interfaces/united.interface';
-
+import * as puppeteer from 'puppeteer';
+import {toDataURL} from 'qrcode'
 
 @Injectable()
 export class CoursesService {
@@ -52,9 +54,9 @@ export class CoursesService {
 
     public async insertStudent({
         country,
-        credential,
+        identification,
         dateOfBirth,
-        departament,
+        department,
         gender,
         group,
         locality,
@@ -65,30 +67,34 @@ export class CoursesService {
         schoolCode,
         schoolName,
         turn,
-        yearOfSchoollarity
+        grade,
+        pdfNumber,
+        year,
+        level
     }:InsertStudentDto):Promise<Student>{
 
         let findUnited:UnitedEntity=await this.unitedRepository.findOne({where:{schoolCode}});
         if(!findUnited){
-            findUnited=await this.createUnited(schoolCode,schoolName);
+            findUnited=await this.createUnited(schoolCode,schoolName,year);
         }
         
-        let findCourse:CourseEntity=await this.courseRepository.findOne({where:{yearOfSchoollarity,group,united:findUnited}});
+        let findCourse:CourseEntity=await this.courseRepository.findOne({where:{grade,group,united:findUnited}});
         if(!findCourse){
-            findCourse=await this.createCourse(turn,yearOfSchoollarity,group,findUnited);
+            findCourse=await this.createCourse(turn,grade,group,level,findUnited);
         }
 
         const studentEnt:StudentEntity=new StudentEntity();
         studentEnt.country=country;
         studentEnt.course=findCourse;
-        studentEnt.credential=credential;
+        studentEnt.identification=identification;
         studentEnt.dateOfBirth=dateOfBirth;
-        studentEnt.departament=departament;
+        studentEnt.department=department;
         studentEnt.gender=gender;
         studentEnt.locality=locality;
         studentEnt.name=name;
         studentEnt.province=province;
         studentEnt.registration=registration;
+        studentEnt.pdfNumber=pdfNumber;
         studentEnt.rude=rude;
 
         await this.studentRepository.save(studentEnt);
@@ -96,11 +102,12 @@ export class CoursesService {
         return studentEnt;
     }
 
-    private async createUnited(schoolCode:string,schoolName:string,):Promise<UnitedEntity>{
+    private async createUnited(schoolCode:string,schoolName:string,year:number):Promise<UnitedEntity>{
 
         const unitedEnt: UnitedEntity=new UnitedEntity();
         unitedEnt.schoolCode=schoolCode;
         unitedEnt.schoolName=schoolName;
+        unitedEnt.year=year;
         unitedEnt.course=[];
 
         await this.unitedRepository.save(unitedEnt);
@@ -108,14 +115,15 @@ export class CoursesService {
         return unitedEnt;
     }
 
-    private async createCourse(turn:string,yearOfSchoollarity:number,group:string,united:UnitedEntity):Promise<CourseEntity>{
+    private async createCourse(turn:string,grade:string,group:string,level:string,united:UnitedEntity):Promise<CourseEntity>{
 
         const courseEnt=new CourseEntity();
 
         courseEnt.turn=turn;
-        courseEnt.yearOfSchoollarity=yearOfSchoollarity;
+        courseEnt.grade=grade;
         courseEnt.group=group;
         courseEnt.united=united;
+        courseEnt.level=level;
         courseEnt.student=[];
         
         await this.courseRepository.save(courseEnt);
@@ -156,6 +164,286 @@ export class CoursesService {
         }
 
         return studentsEnt;
+    }
+
+    public async postAllData(data: UnitedsDto[]):Promise<boolean>{
+        for (let z = 0; z < data.length; z++) {
+            const {courses,schoolCode,year,schoolName} = data[z];
+            const unitEnt=await this.createUnited(schoolCode,schoolName,year);
+            for (let y = 0; y < courses.length; y++) {
+                const {turn,grade,group,level,students} = courses[y];
+                const courseEnt=await this.createCourse(turn,grade,group,level,unitEnt);
+                for (let x = 0; x < students.length; x++) {
+                    const {country,dateOfBirth,department,gender,identification,locality,name,province,registration,rude,pdfNumber} = students[x];
+                    const studentEnt:StudentEntity=new StudentEntity();
+                    studentEnt.country=country;
+                    studentEnt.course=courseEnt;
+                    studentEnt.identification=identification;
+                    studentEnt.dateOfBirth=dateOfBirth;
+                    studentEnt.department=department;
+                    studentEnt.gender=gender;
+                    studentEnt.locality=locality;
+                    studentEnt.name=name;
+                    studentEnt.province=province;
+                    studentEnt.registration=registration;
+                    studentEnt.pdfNumber=pdfNumber;
+                    studentEnt.rude=rude;
+
+                    await this.studentRepository.save(studentEnt);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public async getPdfACourse(id:number):Promise<Buffer>{
+        //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
+        const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
+        const page=await browser.newPage();
+        page.setDefaultNavigationTimeout(0);
+        const courseEnt: CourseEntity=await this.courseRepository.findOne({
+            where:{id},
+            relations: ['united','student']
+        });
+
+        let construir='<table id="puppeteer"><thead>'
+                +'<tr>'
+                +'<th>Nro</th>'
+                +'<th>QR</th>'
+                +'<th>Rude</th>'
+                +'<th>Carnet</th>'
+                +'<th>Nombre</th>'
+                +'<th>Matricula</th>'
+                +'<th>QR</th>'
+                +'<th style="padding-right: 100px">Firma</th>'
+                +'</tr>'
+                +'</thead>'
+                +'<tbody>';
+        for (let z = 0; z < courseEnt.student.length; z++) {
+            const element = courseEnt.student[z];
+            if(z%2==0){
+                construir+='<tr>'
+                    +'<td>'+(z+1)+'</td>'
+                    +'<td><img src="'+(await this.createQR(element.rude))+'" width="70" height="70" /></td>'
+                    +'<td>'+element.rude+'</td>'
+                    +'<td>'+element.identification+'</td>'
+                    +'<td>'+element.name+'</td>'
+                    +'<td>'+element.registration+'</td>'
+                    +'<td></td>'
+                    +'<td></td>'
+                    +'</tr>';
+            }else{
+                construir+='<tr>'
+                    +'<td>'+(z+1)+'</td>'
+                    +'<td></td>'
+                    +'<td>'+element.rude+'</td>'
+                    +'<td>'+element.identification+'</td>'
+                    +'<td>'+element.name+'</td>'
+                    +'<td>'+element.registration+'</td>'
+                    +'<td><img src="'+(await this.createQR(element.rude))+'" width="70" height="70" /></td>'
+                    +'<td></td>'
+                    +'</tr>';
+            }
+        }
+        construir+='</tbody>'
+                +'<tfoot>'
+                +'<tr>'
+                +'<th>Nro</th>'
+                +'<th>QR</th>'
+                +'<th>Rude</th>'
+                +'<th>Carnet</th>'
+                +'<th>Nombre</th>'
+                +'<th>Matricula</th>'
+                +'<th>QR</th>'
+                +'<th>Firma</th>'
+                +'</tr>'
+                +'</tfoot>'
+                +'</table>';
+
+
+        let data='<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>'
+        +'<div>'
+        +'<h1 style="text-align: center;color:#1953AB">UNIDAD DE SISTEMAS GAMP.</h1>'
+        +'<p>Nombre del colegio : '+courseEnt.united.schoolName+'</p>'
+        +'<p>Código del colegio : '+courseEnt.united.schoolCode+'</p>'
+        +'<p>Nivel : '+courseEnt.level+'</p>'
+        +'<p>'+courseEnt.group+'</p>'
+        +'<p>'+courseEnt.grade+'</p>'
+        +'<p>Turno : '+courseEnt.turn+'</p>'
+        +'</div>'
+        +construir
+        +'</body></html>';
+        await page.setContent(data);
+        await page.evaluate(async () => {
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        const content = `
+        #puppeteer {
+            font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        #puppeteer td, #customers th {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        #puppeteer tr:nth-child(even){background-color: #f2f2f2;}
+        #puppeteer th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            text-align: left;
+            background-color: #1953AB;
+            color: white;
+        }`;
+        style.appendChild(document.createTextNode(content));
+        const promise = new Promise((resolve, reject) => {
+            style.onload = resolve;
+            style.onerror = reject;
+        });
+        document.head.appendChild(style);
+        await promise;
+        });
+        const pdf=await page.pdf({printBackground: true});
+
+        await browser.close();
+
+        
+        
+        return pdf;
+    }
+
+    public async getPdfACourseWithOutQr(id:number):Promise<Buffer>{
+        //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
+        const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
+        const page=await browser.newPage();
+        page.setDefaultNavigationTimeout(0);
+        const courseEnt: CourseEntity=await this.courseRepository.findOne({
+            where:{id},
+            relations: ['united','student']
+        });
+
+        let construir='<table id="puppeteer"><thead>'
+                +'<tr>'
+                +'<th>Nro</th>'
+                +'<th>Rude</th>'
+                +'<th>Carnet</th>'
+                +'<th>Nombre</th>'
+                +'<th>Matricula</th>'
+                +'<th style="padding-right: 100px">Firma</th>'
+                +'</tr>'
+                +'</thead>'
+                +'<tbody>';
+        for (let z = 0; z < courseEnt.student.length; z++) {
+            const element = courseEnt.student[z];
+            construir+='<tr>'
+                +'<td>'+(z+1)+'</td>'
+                +'<td>'+element.rude+'</td>'
+                +'<td>'+element.identification+'</td>'
+                +'<td>'+element.name+'</td>'
+                +'<td>'+element.registration+'</td>'
+                +'<td></td>'
+                +'</tr>';
+        }
+        construir+='</tbody>'
+                +'<tfoot>'
+                +'<tr>'
+                +'<th>Nro</th>'
+                +'<th>Rude</th>'
+                +'<th>Carnet</th>'
+                +'<th>Nombre</th>'
+                +'<th>Matricula</th>'
+                +'<th>Firma</th>'
+                +'</tr>'
+                +'</tfoot>'
+                +'</table>';
+
+
+        let data='<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>'
+        +'<div>'
+        +'<h1 style="text-align: center;color:#1953AB">UNIDAD DE SISTEMAS GAMP.</h1>'
+        +'<p>Nombre del colegio : '+courseEnt.united.schoolName+'</p>'
+        +'<p>Código del colegio : '+courseEnt.united.schoolCode+'</p>'
+        +'<p>Nivel : '+courseEnt.level+'</p>'
+        +'<p>'+courseEnt.group+'</p>'
+        +'<p>'+courseEnt.grade+'</p>'
+        +'<p>Turno : '+courseEnt.turn+'</p>'
+        +'</div>'
+        +construir
+        +'</body></html>';
+        await page.setContent(data);
+        await page.evaluate(async () => {
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        const content = `
+        #puppeteer {
+            font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        #puppeteer td, #customers th {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        #puppeteer tr:nth-child(even){background-color: #f2f2f2;}
+        #puppeteer th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            text-align: left;
+            background-color: #1953AB;
+            color: white;
+        }`;
+        style.appendChild(document.createTextNode(content));
+        const promise = new Promise((resolve, reject) => {
+            style.onload = resolve;
+            style.onerror = reject;
+        });
+        document.head.appendChild(style);
+        await promise;
+        });
+        const pdf=await page.pdf({printBackground: true});
+
+        await browser.close();
+
+        
+        
+        return pdf;
+    }
+
+    private async createQR(data:string):Promise<string>{
+        const url=await toDataURL(data);    
+        return url;
+    }
+
+    public async createDatabase():Promise<boolean>{
+        const obj: UnitedsDto[]= JSON.parse(fs.readFileSync(__dirname+'/../../../dataStudent/colegios.json', 'utf8'));
+        for (let z = 0; z < obj.length; z++) {
+            const {courses,schoolCode,year,schoolName} = obj[z];
+            const unitEnt=await this.createUnited(schoolCode,schoolName,year);
+            for (let y = 0; y < courses.length; y++) {
+                const {turn,grade,group,level,students} = courses[y];
+                const courseEnt=await this.createCourse(turn,grade,group,level,unitEnt);
+                for (let x = 0; x < students.length; x++) {
+                    const {country,dateOfBirth,department,gender,identification,locality,name,province,registration,rude,pdfNumber} = students[x];
+                    const studentEnt:StudentEntity=new StudentEntity();
+                    studentEnt.country=country;
+                    studentEnt.course=courseEnt;
+                    studentEnt.identification=identification;
+                    studentEnt.dateOfBirth=dateOfBirth;
+                    studentEnt.department=department;
+                    studentEnt.gender=gender;
+                    studentEnt.locality=locality;
+                    studentEnt.name=name;
+                    studentEnt.province=province;
+                    studentEnt.registration=registration;
+                    studentEnt.pdfNumber=pdfNumber;
+                    studentEnt.rude=rude;
+
+                    await this.studentRepository.save(studentEnt);
+                }
+            }
+        }
+        return true;
     }
 
 }

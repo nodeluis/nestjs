@@ -4,4 +4,6 @@ export interface United{
     schoolCode:string;
 
     schoolName:string;
+
+    year:number;
 }

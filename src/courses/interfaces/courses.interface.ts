@@ -3,7 +3,9 @@ export interface Course{
 
     turn:string;
 
-    yearOfSchoollarity:number;
+    grade:string;
+
+    level:string;
 
     group:string;
 

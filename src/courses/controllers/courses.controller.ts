@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpException, Param, Post, Put } from '@nestjs/common';
-import { ApiParam } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpException, Param, Post, Put, Res } from '@nestjs/common';
+import { ApiParam,ApiBodyOptions, ApiBody } from '@nestjs/swagger';
 import { InsertStudentDto } from '../dto/insertStudent.dto';
+import { UnitedsDto } from '../dto/post.dto';
 import { UpdateStudentsDto } from '../dto/updateCourse.dto';
 import { Course } from '../interfaces/courses.interface';
 import { Student } from '../interfaces/student.interface';
 import { CoursesService } from '../services/courses.service';
+import { Request, Response } from 'express';
 
 @Controller('courses')
 export class CoursesController {
@@ -94,6 +96,76 @@ export class CoursesController {
             const result=await this.coursesService.updateCourse(data);
             if(!result)throw new HttpException('Conflicto al hacer la petición',409);
             return {message:'los estudiantes con el id '+id+' del curso fueron actualizados',students:result};
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @ApiBody({
+        type:[UnitedsDto]
+    })
+    @Post('send')
+    async postAllData(@Body() data:UnitedsDto[]){
+        try {
+            const result=await this.coursesService.postAllData(data);
+            if(!result)throw new HttpException('Conflicto al hacer la petición',409);
+            return {message: 'Se insertaron todos los datos'};
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @ApiParam({name: 'id', required: true, description: 'Id del curso para generar el pdf' })
+    @Get('pdfqr/:id')
+    async getPdfqr(@Param('id') id:number,@Res() res: Response,): Promise<void>{
+        try {
+            const result: Buffer=await this.coursesService.getPdfACourse(id);
+            res.set({
+                // pdf
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'attachment; filename=invoice.pdf',
+                'Content-Length': result.length,
+          
+                // prevent cache
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': 0,
+            });
+            res.end(result)
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @ApiParam({name: 'id', required: true, description: 'Id del curso para generar el pdf sin el qr' })
+    @Get('pdf/:id')
+    async getPdf(@Param('id') id:number,@Res() res: Response,): Promise<void>{
+        try {
+            const result: Buffer=await this.coursesService.getPdfACourseWithOutQr(id);
+            res.set({
+                // pdf
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'attachment; filename=invoice.pdf',
+                'Content-Length': result.length,
+          
+                // prevent cache
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': 0,
+            });
+            res.end(result)
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    //crear database
+    @Get('created')
+    async createDatabase(){
+        try {
+            const result: boolean=await this.coursesService.createDatabase();
+            if(!result)throw new HttpException('Conflicto al hacer la petición',409);
+            return {message: 'Se insertaron todos los datos'};
         } catch (error) {
             throw new HttpException(error,409);
         }

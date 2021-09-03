@@ -142,7 +142,7 @@ export class UsersService {
             cour.push({
                 group:element.group,
                 turn:element.turn,
-                yearOfSchoollarity:element.yearOfSchoollarity,
+                grade:element.grade,
                 students:studentEnt
             });
             

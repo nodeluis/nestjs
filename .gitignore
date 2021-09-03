@@ -3,6 +3,7 @@
 /node_modules
 /postgres_data
 /src/pdf
+/dataStudent
 
 # Logs
 logs

@@ -3,17 +3,19 @@ export interface Student{
 
     rude:string;
 
-    credential:string;
+    identification:string;
 
     name:string;
 
     gender:string;
 
+    pdfNumber:number;
+
     dateOfBirth:string;
     
     country:string;
 
-    departament:string;
+    department:string;
 
     province:string;
 

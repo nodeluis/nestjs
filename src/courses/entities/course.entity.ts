@@ -14,10 +14,13 @@ export class CourseEntity implements Course{
     turn:string;
 
     @Column()
-    yearOfSchoollarity:number;
+    grade:string;
 
     @Column()
     group:string;
+
+    @Column()
+    level:string;
 
     @Column({default:false})
     asignated:boolean;
