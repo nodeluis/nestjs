@@ -304,7 +304,7 @@ export class CoursesService {
         document.head.appendChild(style);
         await promise;
         });
-        const pdf=await page.pdf({printBackground: true});
+        const pdf=await page.pdf({landscape:true,printBackground: true});
 
         await browser.close();
 
@@ -401,7 +401,7 @@ export class CoursesService {
         document.head.appendChild(style);
         await promise;
         });
-        const pdf=await page.pdf({printBackground: true});
+        const pdf=await page.pdf({landscape:true,printBackground: true});
 
         await browser.close();
 
