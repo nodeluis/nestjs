@@ -160,7 +160,7 @@ export class CoursesController {
     }
 
     //crear database
-    @Get('created')
+    /*@Get('created')
     async createDatabase(){
         try {
             const result: boolean=await this.coursesService.createDatabase();
@@ -169,5 +169,5 @@ export class CoursesController {
         } catch (error) {
             throw new HttpException(error,409);
         }
-    }
+    }*/
 }
