@@ -73,7 +73,7 @@ export class UsersService {
 
     }
 
-    public async auth({user,password}:UserDto):Promise<{ cookie: string; findUser: User }>{
+    public async auth({user,password}:UserDto):Promise<{ cookie: string; findUser: User , tokenData: TokenData }>{
         if (isEmpty(user)||isEmpty(password)) throw new HttpException('No se envió la data',409);
         
         const findUser: User = await this.userRepository.findOne({ where: { user} });
@@ -86,14 +86,14 @@ export class UsersService {
         const tokenData = this.createToken(findUser);
         const cookie = this.createCookie(tokenData);
         
-        return { cookie, findUser };
+        return { cookie, findUser, tokenData };
 
     }
 
     public createToken(user: User): TokenData {
         const dataStoredInToken: DataStoredInToken = { id: user.id };
         const secretKey: string = 'secretKey';
-        const expiresIn: number = 60 * 60;
+        const expiresIn: number = 60 * 60 * 24 * 1000;
 
         return { expiresIn, token: jwt.sign(dataStoredInToken, secretKey, { expiresIn }) };
     }

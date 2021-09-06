@@ -14,6 +14,9 @@ import { Student } from '../interfaces/student.interface';
 import { United } from '../interfaces/united.interface';
 import * as puppeteer from 'puppeteer';
 import {toDataURL} from 'qrcode'
+import { isEmpty } from 'src/utils/util';
+import { ResponsePdfUnited } from '../interfaces/responsePdf.interface';
+import * as AdmZip from 'adm-zip';
 
 @Injectable()
 export class CoursesService {
@@ -197,7 +200,31 @@ export class CoursesService {
         return true;
     }
 
-    public async getPdfACourse(id:number):Promise<Buffer>{
+    public async getPdfUnitedQr(id:number):Promise<Buffer>{
+        if(isEmpty(id))throw new HttpException('No se envió la data',400);
+
+        const unitedEnt: UnitedEntity=await this.unitedRepository.findOne({
+            where:{id},
+            relations: ['course']
+        });
+        if(!unitedEnt)throw new HttpException('No existe un curso con ese id',409);
+
+        const resp: ResponsePdfUnited[]=[];
+
+        const zip: AdmZip= new AdmZip();
+
+        for (let z = 0; z < unitedEnt.course.length; z++) {
+            const element: CourseEntity= unitedEnt.course[z];
+            const {namePdf,pdf}=await this.getPdfACourse(element.id);
+            zip.addFile(namePdf,Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }
+
+        const zipBuffer: Buffer = zip.toBuffer();
+        
+        return zipBuffer;
+    }
+
+    public async getPdfACourse(id:number):Promise<{pdf:Buffer,namePdf:string}>{
         //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
         const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
         const page=await browser.newPage();
@@ -225,7 +252,7 @@ export class CoursesService {
             if(z%2==0){
                 construir+='<tr>'
                     +'<td>'+(z+1)+'</td>'
-                    +'<td><img src="'+(await this.createQR(element.rude))+'" width="70" height="70" /></td>'
+                    +'<td style="padding: 0px; "><img src="'+(await this.createQR(element.rude))+'" width="50" height="50" /></td>'
                     +'<td>'+element.rude+'</td>'
                     +'<td>'+element.identification+'</td>'
                     +'<td>'+element.name+'</td>'
@@ -241,13 +268,13 @@ export class CoursesService {
                     +'<td>'+element.identification+'</td>'
                     +'<td>'+element.name+'</td>'
                     +'<td>'+element.registration+'</td>'
-                    +'<td><img src="'+(await this.createQR(element.rude))+'" width="70" height="70" /></td>'
+                    +'<td style="padding: 0px; "><img src="'+(await this.createQR(element.rude))+'" width="50" height="50" /></td>'
                     +'<td></td>'
                     +'</tr>';
             }
         }
         construir+='</tbody>'
-                +'<tfoot>'
+                /*+'<tfoot>'
                 +'<tr>'
                 +'<th>Nro</th>'
                 +'<th>QR</th>'
@@ -258,7 +285,7 @@ export class CoursesService {
                 +'<th>QR</th>'
                 +'<th>Firma</th>'
                 +'</tr>'
-                +'</tfoot>'
+                +'</tfoot>'*/
                 +'</table>';
 
 
@@ -293,8 +320,7 @@ export class CoursesService {
             padding-top: 12px;
             padding-bottom: 12px;
             text-align: left;
-            background-color: #1953AB;
-            color: white;
+            border: 2px solid black;
         }`;
         style.appendChild(document.createTextNode(content));
         const promise = new Promise((resolve, reject) => {
@@ -304,16 +330,21 @@ export class CoursesService {
         document.head.appendChild(style);
         await promise;
         });
-        const pdf=await page.pdf({landscape:true,printBackground: true});
+        const pdf=await page.pdf({
+            landscape:true,
+            printBackground: true,
+            
+        });
 
         await browser.close();
 
+        const namePdf: string=courseEnt.united.schoolName+'-'+courseEnt.group+'-'+courseEnt.grade+'-'+courseEnt.turn;
         
-        
-        return pdf;
+        return {pdf,namePdf};
+
     }
 
-    public async getPdfACourseWithOutQr(id:number):Promise<Buffer>{
+    public async getPdfACourseWithOutQr(id:number):Promise<{pdf:Buffer,namePdf:string}>{
         //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
         const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
         const page=await browser.newPage();
@@ -346,7 +377,7 @@ export class CoursesService {
                 +'</tr>';
         }
         construir+='</tbody>'
-                +'<tfoot>'
+                /*+'<tfoot>'
                 +'<tr>'
                 +'<th>Nro</th>'
                 +'<th>Rude</th>'
@@ -355,7 +386,7 @@ export class CoursesService {
                 +'<th>Matricula</th>'
                 +'<th>Firma</th>'
                 +'</tr>'
-                +'</tfoot>'
+                +'</tfoot>'*/
                 +'</table>';
 
 
@@ -390,8 +421,7 @@ export class CoursesService {
             padding-top: 12px;
             padding-bottom: 12px;
             text-align: left;
-            background-color: #1953AB;
-            color: white;
+            border: 2px solid black;
         }`;
         style.appendChild(document.createTextNode(content));
         const promise = new Promise((resolve, reject) => {
@@ -405,9 +435,9 @@ export class CoursesService {
 
         await browser.close();
 
+        const namePdf: string=courseEnt.united.schoolName+'-'+courseEnt.group+'-'+courseEnt.grade+'-'+courseEnt.turn;
         
-        
-        return pdf;
+        return {pdf,namePdf};
     }
 
     private async createQR(data:string):Promise<string>{

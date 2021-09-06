@@ -89,10 +89,10 @@ export class UsersController {
     @Post('auth')
     async auth(@Body() body:UserDto, @Res() res: Response){
         try {
-            const {cookie,findUser}=await this.userService.auth(body);
+            const {cookie,findUser, tokenData}=await this.userService.auth(body);
             if(!findUser)throw new HttpException('Error en la respuesta',409);
             res.cookie('Set-Cookie', [cookie]); // Using express res object.
-            return res.send({ data: {...findUser,password:''}, message: 'Bienvenido' });
+            return res.send({ data: {...findUser,password:''}, tokenData, message: 'Bienvenido' });
         } catch (error) {
             throw new HttpException(error,409);
         }

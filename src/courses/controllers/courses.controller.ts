@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpException, Param, Post, Put, Res } from '@nestjs/common';
-import { ApiParam,ApiBodyOptions, ApiBody } from '@nestjs/swagger';
+import { ApiParam, ApiBody } from '@nestjs/swagger';
 import { InsertStudentDto } from '../dto/insertStudent.dto';
 import { UnitedsDto } from '../dto/post.dto';
 import { UpdateStudentsDto } from '../dto/updateCourse.dto';
@@ -7,6 +7,7 @@ import { Course } from '../interfaces/courses.interface';
 import { Student } from '../interfaces/student.interface';
 import { CoursesService } from '../services/courses.service';
 import { Request, Response } from 'express';
+import { ResponsePdfUnited } from '../interfaces/responsePdf.interface';
 
 @Controller('courses')
 export class CoursesController {
@@ -115,15 +116,16 @@ export class CoursesController {
         }
     }
 
-    @ApiParam({name: 'id', required: true, description: 'Id del curso para generar el pdf' })
-    @Get('pdfqr/:id')
-    async getPdfqr(@Param('id') id:number,@Res() res: Response,): Promise<void>{
+
+    @ApiParam({name: 'id', required: true, description: 'Id de la escuela para generar todos los pdf de sus cursos' })
+    @Get('unitedPdfQr/:id')
+    async getPdfUnitedqr(@Param('id') id:number,@Res() res: Response,): Promise<void>{
         try {
-            const result: Buffer=await this.coursesService.getPdfACourse(id);
+            const result=await this.coursesService.getPdfUnitedQr(id);
             res.set({
                 // pdf
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': 'attachment; filename=invoice.pdf',
+                'Content-Type': 'application/zip',
+                'Content-Disposition': 'attachment; filename=mizip.zip',
                 'Content-Length': result.length,
           
                 // prevent cache
@@ -131,7 +133,29 @@ export class CoursesController {
                 'Pragma': 'no-cache',
                 'Expires': 0,
             });
-            res.end(result)
+            res.end(result);
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    @ApiParam({name: 'id', required: true, description: 'Id del curso para generar el pdf' })
+    @Get('pdfqr/:id')
+    async getPdfqr(@Param('id') id:number,@Res() res: Response,): Promise<void>{
+        try {
+            const {namePdf,pdf}=await this.coursesService.getPdfACourse(id);
+            res.set({
+                // pdf
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'attachment; filename='+namePdf+'.pdf',
+                'Content-Length': pdf.length,
+          
+                // prevent cache
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': 0,
+            });
+            res.end(pdf)
         } catch (error) {
             throw new HttpException(error,409);
         }
@@ -141,19 +165,19 @@ export class CoursesController {
     @Get('pdf/:id')
     async getPdf(@Param('id') id:number,@Res() res: Response,): Promise<void>{
         try {
-            const result: Buffer=await this.coursesService.getPdfACourseWithOutQr(id);
+            const {namePdf,pdf}=await this.coursesService.getPdfACourseWithOutQr(id);
             res.set({
                 // pdf
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': 'attachment; filename=invoice.pdf',
-                'Content-Length': result.length,
+                'Content-Disposition': 'attachment; filename='+namePdf+'.pdf',
+                'Content-Length': pdf.length,
           
                 // prevent cache
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': 0,
             });
-            res.end(result)
+            res.end(pdf)
         } catch (error) {
             throw new HttpException(error,409);
         }
