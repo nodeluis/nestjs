@@ -117,8 +117,8 @@ export class CoursesController {
     }
 
 
-    @ApiParam({name: 'id', required: true, description: 'Id de la escuela para generar todos los pdf de sus cursos' })
-    @Get('unitedPdfQr/:id')
+    @ApiParam({name: 'id', required: true, description: 'Id de la escuela para generar todos los pdfs de sus cursos' })
+    @Get('unitedPdfsQr/:id')
     async getPdfUnitedqr(@Param('id') id:number,@Res() res: Response,): Promise<void>{
         try {
             const result=await this.coursesService.getPdfUnitedQr(id);
