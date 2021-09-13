@@ -76,5 +76,9 @@ export class InsertStudentDto{
     @ApiProperty()
     @IsNotEmpty()
     year:number;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    schoolType:string;
     
 }

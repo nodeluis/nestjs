@@ -1,20 +1,14 @@
 {
     "type": "postgres",
-    "host": "ec2-44-196-250-191.compute-1.amazonaws.com",
+    "host": "172.22.0.2",
     "port": 5432,
-    "username": "dmhhygvxfeydjr",
-    "password": "907bc16f92c2d265858bee90b4ff798954d73875ea19ef759d71816d866b9221",
-    "database": "d1gr5r8huc91nc",
+    "username": "gamp",
+    "password": "gamp-pass",
+    "database": "gampUser",
     "entities": ["src/**/*.entity.ts"],
     "synchronize": false,
     "migrationsTableName": "migrations",
     "migrations": ["src/database/migrations/*.ts"],
-    "ssl": true,
-        "extra": {
-            "ssl": {
-            "rejectUnauthorized": false
-        }
-    },
     "cli": {
         "migrationsDir": "src/database/migrations"
     }

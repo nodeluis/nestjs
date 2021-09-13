@@ -183,6 +183,17 @@ export class CoursesController {
         }
     }
 
+    /*@Get('UnitedAndStudentsNumber')
+    async unitedAndStudent(){
+        try {
+            const result=await this.coursesService.getSchoolsAndNumberStudent();
+            if(!result) throw new HttpException('error',409);
+            return result;
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }*/
+
     //crear database
     /*@Get('created')
     async createDatabase(){
@@ -194,4 +205,15 @@ export class CoursesController {
             throw new HttpException(error,409);
         }
     }*/
+
+    @Get('readxls')
+    async readxls(){
+        try {
+            const result=await this.coursesService.readxls();
+            if(!result)throw new HttpException('Conflicto al hacer la petición',409);
+            return result;
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
 }

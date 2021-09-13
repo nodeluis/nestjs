@@ -20,6 +20,10 @@ export class UnitedsDto{
     @IsNotEmpty()
     public year: number;
 
+    @ApiProperty()
+    @IsNotEmpty()
+    public schoolType:string;
+
     @ApiProperty({
         type:()=>[CourseDto]
     })

@@ -6,4 +6,6 @@ export interface United{
     schoolName:string;
 
     year:number;
+
+    schoolType:string;
 }
