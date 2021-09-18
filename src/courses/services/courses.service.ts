@@ -768,7 +768,8 @@ export class CoursesService {
         return names;
     }
 
-    public async countQr(data:RegisterCi[]):Promise<boolean>{
+    public async countQr(data:RegisterCi[],id:number):Promise<boolean>{
+        //asignar ese id, lo hago el lunes gggggggg
         for (let z = 0; z < data.length; z++) {
             const element = data[z];
             const studentEnt=await this.studentRepository.findOne({where:{id:element.id,rude:element.rude}});

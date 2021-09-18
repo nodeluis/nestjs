@@ -208,10 +208,12 @@ export class CoursesController {
         }
     }
 
+    //--------------------------------------------------------
+    @ApiParam({name: 'id', required: true, description: 'Id del usuario que esta registrando' })
     @Post('countCi')
-    async countQr(@Body() data:RegisterCi[]){
+    async countQr(@Param('id') id:number,@Body() data:RegisterCi[]){
         try {
-            const result=await this.coursesService.countQr(data);
+            const result=await this.coursesService.countQr(data,id);
             if(!result)new HttpException('Error en la consulta',409);
             return {message:' Se actualizaron los usuarios'};
         } catch (error) {
@@ -219,8 +221,8 @@ export class CoursesController {
         }
     }
 
-    @ApiParam({name: 'id', required: true, description: 'Id del curso para generar el pdf sin el qr' })
-    @Post('getCourses')
+    @ApiParam({name: 'id', required: true, description: 'Id del colegio para devolver cursos y estudiantes de un colegio' })
+    @Get('getCourses')
     async getCoursesAndStudents(@Param('id') id:number){
         try {
             const result=await this.coursesService.getCoursesAndStudents(id);
@@ -230,6 +232,7 @@ export class CoursesController {
             throw new HttpException(error,409);
         }
     }
+    //--------------------------------------------------------
 
     /*@Post('pika')
     @UseInterceptors(FileInterceptor('file',multerOptions))
