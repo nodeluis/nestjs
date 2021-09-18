@@ -41,7 +41,7 @@ export class StudentEntity implements Student{
     @Column()
     registration:string;
 
-    @Column({default:false})
+    @Column({default:true})
     paid:boolean;
 
     @ManyToOne(() => CourseEntity, course => course.student)

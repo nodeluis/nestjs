@@ -14,6 +14,8 @@ export class UserEntity implements User{
     @Column()
     password:string;
 
+    @Column()
+    lastSyncDate:Date;
 
     @OneToMany(() => CourseEntity, course => course.user)
     course: CourseEntity[];

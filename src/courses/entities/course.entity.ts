@@ -1,6 +1,7 @@
 import { UserEntity } from 'src/users/entities/user.entity';
 import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany} from 'typeorm';
 import { Course } from '../interfaces/courses.interface';
+import { CourseProccessEntity } from './courseProccess.entity';
 import { StudentEntity } from './student.entity';
 import { UnitedEntity } from './united.entity';
 
@@ -33,6 +34,9 @@ export class CourseEntity implements Course{
 
     @ManyToOne(() => UserEntity, user => user.course)
     user: UserEntity;
+
+    @OneToMany(() => CourseProccessEntity, courseProccess=> courseProccess.course)
+    courseProccess: CourseProccessEntity[];
 
     @CreateDateColumn({
         name: 'created_at',
