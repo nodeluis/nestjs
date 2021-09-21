@@ -1,16 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {IsNotEmpty,IsArray,IsString} from 'class-validator';
+import {IsNotEmpty} from 'class-validator';
 
-export class RegisterCi{
+export class SendingDataDto{
 
-
-    @ApiProperty()
-    @IsNotEmpty()
-    id:number;
 
     @ApiProperty()
     @IsNotEmpty()
-    rude:number;
+    rude:string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    idStudent:number;
     
     //para evitar conflictos al ultimo manda la foto
 }

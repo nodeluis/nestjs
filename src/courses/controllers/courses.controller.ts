@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, Param, Post, Put, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, Param, Patch, Post, Put, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ApiParam, ApiBody } from '@nestjs/swagger';
 import { InsertStudentDto } from '../dto/insertStudent.dto';
 import { UnitedsDto } from '../dto/post.dto';
@@ -6,12 +6,8 @@ import { UpdateStudentsDto } from '../dto/updateCourse.dto';
 import { Course } from '../interfaces/courses.interface';
 import { Student } from '../interfaces/student.interface';
 import { CoursesService } from '../services/courses.service';
-import { Request, Response } from 'express';
-import { ResponsePdfUnited } from '../interfaces/responsePdf.interface';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { multerOptions } from 'src/utils/multer';
-import { SyncStudentsDto } from '../dto/sync.dto';
-import { RegisterCi } from '../dto/registerCi.dto';
+import { Response } from 'express';
+import { SendingDataDto } from '../dto/sendingData.dto';
 
 @Controller('courses')
 export class CoursesController {
@@ -165,35 +161,13 @@ export class CoursesController {
         }
     }
 
-    @ApiParam({name: 'id', required: true, description: 'Id del curso para generar el pdf sin el qr' })
-    @Get('pdf/:id')
-    async getPdf(@Param('id') id:number,@Res() res: Response,): Promise<void>{
-        try {
-            const {namePdf,pdf}=await this.coursesService.getPdfACourseWithOutQr(id);
-            res.set({
-                // pdf
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': 'attachment; filename='+namePdf+'.pdf',
-                'Content-Length': pdf.length,
-          
-                // prevent cache
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': 0,
-            });
-            res.end(pdf)
-        } catch (error) {
-            throw new HttpException(error,409);
-        }
-    }
-
     @Get('allRar')
     async getAllZip(@Res() res: Response,): Promise<void>{
         try {
             const result=await this.coursesService.getallRar();
             res.set({
                 // pdf
-                'Content-Type': 'application/pdf',
+                'Content-Type': 'application/zip',
                 'Content-Disposition': 'attachment; filename=todos_los_colegios.zip',
                 'Content-Length': result.length,
           
@@ -208,13 +182,40 @@ export class CoursesController {
         }
     }
 
-    //--------------------------------------------------------
-    @ApiParam({name: 'id', required: true, description: 'Id del usuario que esta registrando' })
-    @Post('countCi')
-    async countQr(@Param('id') id:number,@Body() data:RegisterCi[]){
+
+    @Get('allRar')
+    async getAllZipNoPaids(@Res() res: Response,): Promise<void>{
         try {
+            const result=await this.coursesService.getallRarNoPaids();
+            res.set({
+                // pdf
+                'Content-Type': 'application/zip',
+                'Content-Disposition': 'attachment; filename=todos_los_colegios_con_estudiantes_no_pagados.zip',
+                'Content-Length': result.length,
+          
+                // prevent cache
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': 0,
+            });
+            res.end(result);
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
+
+    //--------------------------------------------------------
+    //Revisar pika
+    @ApiBody({
+        type:[SendingDataDto]
+    })
+    @ApiParam({name: 'id', required: true, description: 'Id del usuario que esta registrando para guardar sus cambios' })
+    @Post('countRudes/:id')
+    async countQr(@Param('id') id:number,@Body() data:SendingDataDto[]){
+        try {
+            
             const result=await this.coursesService.countQr(data,id);
-            if(!result)new HttpException('Error en la consulta',409);
+            if(!result)throw new HttpException('Error en la consulta',409);
             return {message:' Se actualizaron los usuarios'};
         } catch (error) {
             throw new HttpException(error,409);
@@ -226,13 +227,35 @@ export class CoursesController {
     async getCoursesAndStudents(@Param('id') id:number){
         try {
             const result=await this.coursesService.getCoursesAndStudents(id);
-            if(!result)new HttpException('Error en la consulta',409);
+            if(!result)throw new HttpException('Error en la consulta',409);
             return {message:' unidad cursos y estudiantes',result};
         } catch (error) {
             throw new HttpException(error,409);
         }
     }
+
     //--------------------------------------------------------
+
+    @Get('resumenesRar')
+    async getStatePdf(@Res() res: Response): Promise<void>{
+        try {
+            const result=await this.coursesService.getStatePdf();
+            res.set({
+                // pdf
+                'Content-Type': 'application/zip',
+                'Content-Disposition': 'attachment; filename=resumenes_pdf.zip',
+                'Content-Length': result.length,
+          
+                // prevent cache
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': 0,
+            });
+            res.end(result);
+        } catch (error) {
+            throw new HttpException(error,409);
+        }
+    }
 
     /*@Post('pika')
     @UseInterceptors(FileInterceptor('file',multerOptions))

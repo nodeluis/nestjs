@@ -5,13 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UnitedEntity } from './entities/united.entity';
 import { CourseEntity } from './entities/course.entity';
 import { StudentEntity } from './entities/student.entity';
-import { MulterModule } from '@nestjs/platform-express';
 import { CourseProccessEntity } from './entities/courseProccess.entity';
 import { UserEntity } from 'src/users/entities/user.entity';
+import { SendingsEntity } from './entities/sendings.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UnitedEntity,CourseEntity,StudentEntity,CourseProccessEntity,UserEntity])
+    TypeOrmModule.forFeature([UnitedEntity,CourseEntity,StudentEntity,CourseProccessEntity,UserEntity,SendingsEntity])
   ],
   providers: [CoursesService],
   controllers: [CoursesController]

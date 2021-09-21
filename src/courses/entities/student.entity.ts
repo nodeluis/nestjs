@@ -1,6 +1,7 @@
 import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne} from 'typeorm';
 import { Student } from '../interfaces/student.interface';
 import { CourseEntity } from './course.entity';
+import { SendingsEntity } from './sendings.entity';
 
 @Entity()
 export class StudentEntity implements Student{
@@ -43,6 +44,9 @@ export class StudentEntity implements Student{
 
     @Column({default:true})
     paid:boolean;
+
+    @ManyToOne(() => SendingsEntity, send => send.student)
+    send: SendingsEntity;
 
     @ManyToOne(() => CourseEntity, course => course.student)
     course: CourseEntity;

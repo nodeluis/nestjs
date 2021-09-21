@@ -43,7 +43,7 @@ export class UsersService {
         const findUser=await this.userRepository.findOne({ where: { user:userData.user } });
         if (findUser) throw new HttpException( `Ya existe ${userData.user} en la base de datos`,409);
         const hashedPassword =await bcrypt.hash(userData.password, 10);
-        const createUserData: User = await this.userRepository.save({ ...userData,course:[],password:hashedPassword});
+        const createUserData: User = await this.userRepository.save({ ...userData,course:[],send:[],password:hashedPassword,lastSyncDate:new Date()});
         return createUserData;
 
     }

@@ -21,7 +21,8 @@ import * as readXlsxFile from 'read-excel-file/node';
 import { CourseProccessEntity } from '../entities/courseProccess.entity';
 import { PaidStudentsDto, SyncStudentsDto } from '../dto/sync.dto';
 import { UserEntity } from 'src/users/entities/user.entity';
-import { RegisterCi } from '../dto/registerCi.dto';
+import { SendingDataDto } from '../dto/sendingData.dto';
+import { SendingsEntity } from '../entities/sendings.entity';
 
 @Injectable()
 export class CoursesService {
@@ -30,8 +31,9 @@ export class CoursesService {
         @InjectRepository(UnitedEntity) private unitedRepository: Repository<UnitedEntity>,
         @InjectRepository(CourseEntity) private courseRepository: Repository<CourseEntity>,
         @InjectRepository(StudentEntity) private studentRepository: Repository<StudentEntity>,
-        @InjectRepository(StudentEntity) private courseProccessRepository: Repository<CourseProccessEntity>,
-        @InjectRepository(StudentEntity) private userRepository: Repository<UserEntity>,
+        @InjectRepository(CourseProccessEntity) private courseProccessRepository: Repository<CourseProccessEntity>,
+        @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
+        @InjectRepository(SendingsEntity) private sendingsRepository: Repository<SendingsEntity>,
     ) {}
 
     public async pdfReader():Promise<boolean>{
@@ -219,7 +221,7 @@ export class CoursesService {
         const zip: AdmZip= new AdmZip();
 
         
-        for (let z = 200; z < 211; z++) {
+        for (let z = 211; z < unitedEnt.length; z++) {
             console.log(z);
             
             const element= unitedEnt[z];
@@ -265,6 +267,29 @@ export class CoursesService {
         return zipBuffer;
     }
 
+    //no pagados todas las unidades
+    public async getallRarNoPaids():Promise<Buffer>{
+        
+        const unitedEnt: UnitedEntity[]=await this.unitedRepository.find();
+        if(!unitedEnt)throw new HttpException('error',409);
+
+        const resp: ResponsePdfUnited[]=[];
+
+        const zip: AdmZip= new AdmZip();
+     
+        for (let z = 211; z < unitedEnt.length; z++) {
+            console.log(z);
+            
+            const element= unitedEnt[z];
+            const {zipBuffer,nameUnidet}=await this.getPdfUnitedQrNoPaids(element.id);
+            zip.addFile(nameUnidet+'.zip',Buffer.alloc(zipBuffer.length, zipBuffer),'comentario gamp');
+        }
+
+        const zipBuffer: Buffer = zip.toBuffer();
+        
+        return zipBuffer;
+    }
+
     public async getPdfUnitedQr(id:number):Promise<{zipBuffer:Buffer,nameUnidet:string}>{
         if(isEmpty(id))throw new HttpException('No se envió la data',400);
 
@@ -283,6 +308,47 @@ export class CoursesService {
             const {namePdf,pdf}=await this.getPdfACourse(element.id);
             zip.addFile(namePdf+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
         }
+
+        //especiales añadido
+        /*for (let z = 0; z < unitedEnt.course.length; z++) {
+            const element: CourseEntity= unitedEnt.course[z];
+            const {namePdf,pdf}=await this.getPdfACourse(element.id);
+            zip.addFile(namePdf+z+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }*/
+
+        const zipBuffer: Buffer = zip.toBuffer();
+
+        const nameUnidet=unitedEnt.schoolCode+'-'+unitedEnt.schoolName;
+        
+        return {zipBuffer,nameUnidet};
+    }
+
+    //no pagados de una unidad
+    public async getPdfUnitedQrNoPaids(id:number):Promise<{zipBuffer:Buffer,nameUnidet:string}>{
+        if(isEmpty(id))throw new HttpException('No se envió la data',400);
+
+        const unitedEnt: UnitedEntity=await this.unitedRepository.findOne({
+            where:{id},
+            relations: ['course']
+        });
+        if(!unitedEnt)throw new HttpException('No existe un curso con ese id',409);
+
+        const resp: ResponsePdfUnited[]=[];
+
+        const zip: AdmZip= new AdmZip();
+
+        for (let z = 0; z < unitedEnt.course.length; z++) {
+            const element: CourseEntity= unitedEnt.course[z];
+            const {namePdf,pdf}=await this.getPdfACourseNoPaids(element.id);
+            zip.addFile(namePdf+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }
+
+        //especiales añadido
+        /*for (let z = 0; z < unitedEnt.course.length; z++) {
+            const element: CourseEntity= unitedEnt.course[z];
+            const {namePdf,pdf}=await this.getPdfACourse(element.id);
+            zip.addFile(namePdf+z+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }*/
 
         const zipBuffer: Buffer = zip.toBuffer();
 
@@ -487,7 +553,8 @@ export class CoursesService {
 
     }
 
-    public async getPdfACourseWithOutQr(id:number):Promise<{pdf:Buffer,namePdf:string}>{
+    //no pagados de un curso
+    private async getPdfACourseNoPaids(id:number):Promise<{pdf:Buffer,namePdf:string}>{
         //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
         const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
         const page=await browser.newPage();
@@ -500,22 +567,28 @@ export class CoursesService {
         let construir='<table id="puppeteer"><thead>'
                 +'<tr>'
                 +'<th>Nro</th>'
+                +'<th>QR</th>'
                 +'<th>Rude</th>'
+                +'<th>QR</th>'
                 +'<th>Carnet</th>'
                 +'<th>Nombre</th>'
                 +'<th>Matricula</th>'
-                +'<th style="padding-right: 350px">Tutor</th>'
-                +'<th style="padding-right: 50px">CI tutor</th>'
-                +'<th>Firma tutor</th>'
+                +'<th style="padding-right: 250px">Nombre tutor</th>'
+                +'<th style="padding-right: 70px">CI tutor</th>'
+                +'<th style="padding-right: 50px">Firma tutor</th>'
                 +'</tr>'
                 +'</thead>'
                 +'<tbody>';
+        let countNumeration=1;
         for (let z = 0; z < courseEnt.student.length; z++) {
             const element = courseEnt.student[z];
-            if(element.registration=='EFECTIVO'){
-                construir+='<tr style="padding: 0px; margin:0px ">'
-                    +'<td>'+(z+1)+'</td>'
+            if(element.registration=='EFECTIVO'&&!element.paid){
+                if(countNumeration%2!=0){
+                    construir+='<tr>'
+                    +'<td>'+(countNumeration)+'</td>'
+                    +'<td><img style="margin-bottom:-3px" src="'+(await this.createQR(element.rude))+'" width="30" height="30" /></td>'
                     +'<td>'+element.rude+'</td>'
+                    +'<td></td>'
                     +'<td>'+element.identification+'</td>'
                     +'<td>'+element.name+'</td>'
                     +'<td>'+element.registration+'</td>'
@@ -523,9 +596,26 @@ export class CoursesService {
                     +'<td></td>'
                     +'<td></td>'
                     +'</tr>';
+                }else{
+                    construir+=`<tr>
+                    <td>${(countNumeration)}</td>
+                    <td></td>
+                    <td>${element.rude}</td>
+                    <td><img style="margin-bottom:-3px" src="${(await this.createQR(element.rude))}" width="30" height="30" /></td>
+                    <td>${element.identification}</td>
+                    <td>${element.name}</td>
+                    <td>${element.registration}</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    </tr>`;
+                }
+                countNumeration+=1;
             }
         }
-        construir+='</tbody>'
+        construir+=`</tbody>
+                </table>`;
+
                 /*+'<tfoot>'
                 +'<tr>'
                 +'<th>Nro</th>'
@@ -538,11 +628,9 @@ export class CoursesService {
                 +'<th>Firma</th>'
                 +'</tr>'
                 +'</tfoot>'*/
-                +'</table>';
-
 
         let data=`<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>
-        <h2 style="text-align: center;color:#1953AB; margin-bottom: 0px;">${courseEnt.united.schoolCode} : ${courseEnt.united.schoolName}</h2>
+        <h3 style="text-align: center; margin-bottom: 0px;">${courseEnt.united.schoolCode} : ${courseEnt.united.schoolName}</h3>
         <table id="puppeteer2"><thead>
         <tr>
         <th>Nivel : ${courseEnt.level}</th>
@@ -555,6 +643,23 @@ export class CoursesService {
         </tbody>
         <br>
         ${construir}
+        <br>
+        <table id="puppeteer3"><thead>
+        <tr>
+        <th>Total beneficiarios pagados</th>
+        <th style="padding-right: 150px"></th>
+        </tr>
+        <tr>
+        <th>Total beneficiarios NO pagados</th>
+        <th style="padding-right: 150px"></th>
+        </tr>
+        </thead>
+        </table>
+        <br>
+        <p>Observaciones..........................................................
+        ..........................................................................
+        ..........................................................................
+        ..........................................................</p>
         </body></html>`;
         await page.setContent(data);
         await page.evaluate(async () => {
@@ -563,24 +668,24 @@ export class CoursesService {
         const content = `
         #puppeteer {
             font-family:"Times New Roman", Times, serif;
+            font-size:70%;
             border-collapse: collapse;
-            font-size:75%;
             width: 100%;
         }
-        #puppeteer td, #customers th {
+        #puppeteer td {
             border: 1px solid #ddd;
         }
-        #puppeteer td{
-            padding: -1; 
-            margin: 0;
-            border: 0;
+        #puppeteer tbody:before {
+            content: "@";
+            display: block;
+            line-height: 1px;
+            color: transparent;
         }
-        #puppeteer tr:nth-child(even){background-color: #f2f2f2;}
         #puppeteer th {
             padding-top: 8px;
             padding-bottom: 8px;
             text-align: left;
-            border: 2px solid black;
+            border: 1px solid black;
         }
 
         #puppeteer2 {
@@ -591,13 +696,30 @@ export class CoursesService {
         #puppeteer2 td, #customers th {
             border: 1px solid #ddd;
         }
-        #puppeteer2 tr:nth-child(even){background-color: #f2f2f2;}
+        
         #puppeteer2 th {
             padding-top: 12px;
             padding-bottom: 12px;
             text-align: left;
             border: 0px solid black;
-        }`;
+        }
+        #puppeteer3 {
+            font-family:"Times New Roman", Times, serif;
+            font-size:70%;
+            border-collapse: collapse;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #puppeteer3 td, #customers th {
+            border: 1px solid #ddd;
+        }
+        #puppeteer3 th {
+            padding-top: 8px;
+            padding-bottom: 8px;
+            text-align: left;
+            border: 1px solid black;
+        }
+        `;
         style.appendChild(document.createTextNode(content));
         const promise = new Promise((resolve, reject) => {
             style.onload = resolve;
@@ -609,17 +731,23 @@ export class CoursesService {
         const pdf=await page.pdf({
             landscape:true,
             printBackground: true,
-            width:'210mm',
-            height:'320mm'
+            width:'216mm',
+            height:'330mm',
+            margin: {
+                left: '50',
+                right: '10',
+                top: '20',
+                bottom: '10'
+            },
+        
         });
 
-
         await browser.close();
-
 
         const namePdf: string=courseEnt.level.substr(0,courseEnt.level.indexOf(' '))+'-'+courseEnt.turn+'-'+courseEnt.grade.charAt(courseEnt.grade.length-1)+'° '+courseEnt.group.charAt(courseEnt.group.length-1);
         
         return {pdf,namePdf};
+
     }
 
 
@@ -749,34 +877,29 @@ export class CoursesService {
         return {results,cProccessEnt};
     }
 
-    private async createCourseProccess(data:SyncStudentsDto,userEnt:UserEntity,path:string): Promise<CourseProccessEntity>{
+    //------------------------------------------------------------------------------
+    //REVISAR PIKA
 
-        return ;
-    }
-
-    public async getSchoolsAndNumberStudent():Promise<string>{
-        const unitedEnt=await this.unitedRepository.find({
-            relations:['course','course.student']
-        });
+    public async countQr(data:SendingDataDto[],id:number):Promise<boolean>{
         
-        let names: string='';
-        for (let z = 0; z < 1; z++) {
-            const element = unitedEnt[z];
-            const coursesEnt=await this.courseRepository.find()
-            names+=element.schoolName+'\n';
-        }
-        return names;
-    }
-
-    public async countQr(data:RegisterCi[],id:number):Promise<boolean>{
-        //asignar ese id, lo hago el lunes gggggggg
+        const userEnt: UserEntity=await this.userRepository.findOne(id);
+        if(!userEnt)throw new HttpException('Error al encontrar el usuario',409);
+ 
         for (let z = 0; z < data.length; z++) {
             const element = data[z];
-            const studentEnt=await this.studentRepository.findOne({where:{id:element.id,rude:element.rude}});
+            const studentEnt=await this.studentRepository.findOne({
+                where:{id:element.idStudent,rude:element.rude},
+            });
+            const sendEnt=new SendingsEntity();
+            sendEnt.rude=element.rude;
+            sendEnt.user=userEnt;
+            sendEnt.stateStudent=false;
+            await this.sendingsRepository.save(sendEnt);
             if(studentEnt){
-                this.studentRepository.update(studentEnt.id,{paid:false});
+                this.studentRepository.update(studentEnt.id,{paid:false,send:sendEnt});
             }
         }
+
         return true;
     }
 
@@ -785,8 +908,11 @@ export class CoursesService {
             where:{id:id},
             relations:['course','course.student']
         });
+        if(!unitedEnt)throw new HttpException('Error no se encontró la unidad',409);
         return unitedEnt;
     }
+
+    //------------------------------------------------------------------------------
 
     public async readxls():Promise<any>{
         let courses=[];
@@ -909,6 +1035,142 @@ export class CoursesService {
         });
 
         return true;
+    }
+
+    public async getStatePdf():Promise<Buffer>{
+
+        const zip: AdmZip= new AdmZip();
+         
+        const unitedEnt=await this.unitedRepository.find({
+            relations:['course']
+        });
+
+        for (let z = 211; z < unitedEnt.length; z++) {
+            console.log(z);
+            
+            const element: UnitedEntity= unitedEnt[z];
+            const {namePdf,pdf}=await this.getpdfCourses(element);
+            zip.addFile(namePdf+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }
+
+        /*for (let z = 130; z < 131; z++) {
+            const element: UnitedEntity= unitedEnt[z];
+            const {namePdf,pdf}=await this.getpdfCourses(element);
+            zip.addFile(namePdf+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }*/
+
+        const zipBuffer: Buffer = zip.toBuffer();
+
+        return zipBuffer;
+
+    }
+
+    private async getpdfCourses(unitedEnt:UnitedEntity):Promise<{pdf:Buffer,namePdf:string}>{
+        //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
+        const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
+        const page=await browser.newPage();
+        page.setDefaultNavigationTimeout(0);
+        
+        let construir='<table id="puppeteer"><thead>'
+                +'<tr>'
+                +'<th>Nro</th>'
+                +'<th style="text-align: left; padding-right: 250px">CURSO</th>'
+                +'<th style="padding-right: 10px; padding-left: 10px">CANTIDAD PAGADOS</th>'
+                +'<th>CANTIDAD NO PAGADOS</th>'
+                +'</tr>'
+                +'</thead>'
+                +'<tbody>';
+        let countNumeration=1;
+
+        if(unitedEnt.schoolType=='E'){
+            for (let z = 0; z < unitedEnt.course.length; z++) {
+                const element: CourseEntity = unitedEnt.course[z];
+                construir+=`<tr>
+                    <td>${countNumeration}</td>
+                    <td>${element.level} ${element.grade} ${element.group}</td>
+                    <td></td>
+                    <td></td>
+                    </tr>`;
+                countNumeration++;
+            }
+        }else{
+            for (let z = 0; z < unitedEnt.course.length; z++) {
+                const element: CourseEntity = unitedEnt.course[z];
+                construir+=`<tr>
+                    <td>${countNumeration}</td>
+                    <td>${element.level.substr(0,element.level.indexOf(' '))+' '+element.turn+' '+element.grade.charAt(element.grade.length-1)+'° '+element.group.charAt(element.group.length-1)}</td>
+                    <td></td>
+                    <td></td>
+                    </tr>`;
+                countNumeration++;
+            }
+        }
+
+        construir+=`</tbody>
+                <tfoot>
+                <tr>
+                <th colspan="2" style="text-align: right;">TOTAL</th>
+                <th></th>
+                <th></th>
+                </tr>
+                </tfoot>
+                </table>`;
+
+        let data=`<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>
+        <h3 style="text-align: center; margin-bottom: 0px;">RESUMEN DE PAGOS DEL BONO ESTUDIANTIL</h3>
+        <h3 style="text-align: center; margin-bottom: 0px;">${unitedEnt.schoolCode} : ${unitedEnt.schoolName}</h3>
+        <br>
+        ${construir}
+        <br>
+        </body></html>`;
+        await page.setContent(data);
+        await page.evaluate(async () => {
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        const content = `
+        #puppeteer {
+            font-family:"Times New Roman", Times, serif;
+            font-size:50%;
+            border-collapse: collapse;
+            width: 60%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #puppeteer td {
+            border: 1px solid black;
+            padding-top: 6px;
+            padding-bottom: 6px;
+        }
+        #puppeteer th {
+            padding-top: 8px;
+            padding-bottom: 8px;
+            border: 1px solid black;
+        }
+        `;
+        style.appendChild(document.createTextNode(content));
+        const promise = new Promise((resolve, reject) => {
+            style.onload = resolve;
+            style.onerror = reject;
+        });
+        document.head.appendChild(style);
+        await promise;
+        });
+        const pdf=await page.pdf({
+            printBackground: true,
+            width:'216mm',
+            height:'330mm',
+            margin: {
+                top: '50',
+                bottom: '50'
+            },
+        });
+
+        await browser.close();
+
+        const namePdf: string=unitedEnt.schoolCode+' : '+unitedEnt.schoolName;
+
+        return {pdf,namePdf};
+
     }
 
 }
