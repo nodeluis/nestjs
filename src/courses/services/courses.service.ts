@@ -43,11 +43,26 @@ export class CoursesService {
         return true;
     }
 
-    public async findAllCourses():Promise<Course[]>{
+    public async findAllCourses():Promise<number>{
 
         const findCourses=await this.courseRepository.find();
         
-        return findCourses;
+        return findCourses.length;
+
+        /*
+        let count=0;
+
+        const unitedEnt=await this.unitedRepository.find({
+            where:{schoolType:'E'},
+            relations:['course']
+        });
+        for (let z = 0; z < unitedEnt.length; z++) {
+            const element = unitedEnt[z];
+            count+=element.course.length;
+        }
+        
+        return count;
+        */
     }
 
     public async findAllStudents():Promise<Student[]>{
@@ -211,6 +226,204 @@ export class CoursesService {
         return true;
     }
 
+
+    //no pagados todas las unidades
+    //----------------------------------------------------------------------------------------------------------------
+    public async getallRarNoPaids():Promise<Buffer>{
+        
+        const unitedEnt: UnitedEntity[]=await this.unitedRepository.find();
+        if(!unitedEnt)throw new HttpException('error',409);
+
+        const zip: AdmZip= new AdmZip();
+     
+        for (let z = 0; z < unitedEnt.length; z++) {
+            const element= unitedEnt[z];
+            const {pdf,nameUnidet}=await this.getPdfUnitedQrNoPaids(element.id);
+            zip.addFile(nameUnidet+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
+        }
+
+        const zipBuffer: Buffer = zip.toBuffer();
+
+        return zipBuffer;
+    }
+
+    //no pagados de una unidad
+    private async getPdfUnitedQrNoPaids(id:number):Promise<{pdf:Buffer,nameUnidet:string}>{
+        if(isEmpty(id))throw new HttpException('No se envió la data',400);
+
+        const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
+        const page=await browser.newPage();
+        page.setDefaultNavigationTimeout(0);
+
+        const unitedEnt: UnitedEntity=await this.unitedRepository.findOne({
+            where:{id},
+            relations: ['course']
+        });
+        if(!unitedEnt)throw new HttpException('No existe un curso con ese id',409);
+
+        let resultHtml=`
+            <table id="puppeteer"><thead>
+            <tr>
+            <th>Nro</th>
+            <th>Rude</th>
+            <th>Carnet</th>
+            <th>Nombre</th>
+            <th>Curso</th>
+            <th style="padding-right: 250px">Nombre tutor</th>
+            <th style="padding-right: 70px">CI tutor</th>
+            <th style="padding-right: 50px">Firma tutor</th>
+            </tr>
+            </thead>
+            <tbody>
+        `;
+        let count=1;
+        for (let z = 0; z < unitedEnt.course.length; z++) {
+            const element: CourseEntity= unitedEnt.course[z];
+            const {construir,i}=await this.getPdfACourseNoPaids(element.id,count,unitedEnt.schoolType);
+            resultHtml+=construir;
+            count=i;
+        }
+
+        resultHtml+=`
+            </tbody>
+            </table>
+        `;
+
+        let resultHtml2=`<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>
+        <h3 style="text-align: center; margin-bottom: 0px;">${unitedEnt.schoolCode} : ${unitedEnt.schoolName}</h3>
+        ${resultHtml}
+        <br>
+        <table id="puppeteer3"><thead>
+        <tr>
+        <th>Total beneficiarios pagados</th>
+        <th style="padding-right: 150px"></th>
+        </tr>
+        <tr>
+        <th>Total beneficiarios NO pagados</th>
+        <th style="padding-right: 150px"></th>
+        </tr>
+        </thead>
+        </table>
+        <br>
+        <p>Observaciones..........................................................
+        ..........................................................................
+        ..........................................................................
+        ..........................................................</p>
+        </body></html>`;
+
+        await page.setContent(resultHtml2);
+        await page.evaluate(async () => {
+            const style = document.createElement('style');
+            style.type = 'text/css';
+            const content = `
+            #puppeteer {
+                font-family:"Times New Roman", Times, serif;
+                font-size:70%;
+                border-collapse: collapse;
+                width: 100%;
+            }
+            #puppeteer td {
+                border: 1px solid #ddd;
+            }
+            #puppeteer th {
+                padding-top: 8px;
+                padding-bottom: 8px;
+                text-align: left;
+                border: 1px solid black;
+            }
+            #puppeteer3 {
+                font-family:"Times New Roman", Times, serif;
+                font-size:70%;
+                border-collapse: collapse;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            #puppeteer3 td, #customers th {
+                border: 1px solid #ddd;
+            }
+            #puppeteer3 th {
+                padding-top: 8px;
+                padding-bottom: 8px;
+                text-align: left;
+                border: 1px solid black;
+            }`;
+            style.appendChild(document.createTextNode(content));
+            const promise = new Promise((resolve, reject) => {
+                style.onload = resolve;
+                style.onerror = reject;
+            });
+            document.head.appendChild(style);
+            await promise;
+        });
+        const pdf=await page.pdf({
+            landscape:true,
+            printBackground: true,
+            width:'216mm',
+            height:'330mm',
+            margin: {
+                left: '50',
+                right: '10',
+                top: '20',
+                bottom: '10'
+            },
+        
+        });
+
+        await browser.close();
+
+        const nameUnidet=unitedEnt.schoolCode+'-'+unitedEnt.schoolName;
+        
+
+        return {pdf,nameUnidet};
+    }
+
+    //no pagados de un curso
+    private async getPdfACourseNoPaids(id:number,countNumeration:number,schoolType:string):Promise<{construir:string,i:number}>{
+
+        const courseEnt: CourseEntity=await this.courseRepository.findOne({
+            where:{id},
+            relations: ['student']
+        });
+        
+        let construir='';
+        let i=countNumeration;
+        for (let z = 0; z < courseEnt.student.length; z++) {
+            const element = courseEnt.student[z];
+            if(element.registration=='EFECTIVO'&&!element.paid){
+                if(schoolType=='E'){
+                    construir+=`<tr>
+                        <td>${i}</td>
+                        <td>${element.rude}</td>
+                        <td>${element.identification}</td>
+                        <td>${element.name}</td>
+                        <td>${courseEnt.level}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        </tr>`;
+                }else{
+                    construir+=`<tr>
+                        <td>${i}</td>
+                        <td>${element.rude}</td>
+                        <td>${element.identification}</td>
+                        <td>${element.name}</td>
+                        <td>${courseEnt.level.substr(0,courseEnt.level.indexOf(' '))+' '+courseEnt.turn+' '+courseEnt.grade.charAt(courseEnt.grade.length-1)+'° '+courseEnt.group.charAt(courseEnt.group.length-1)}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        </tr>`;
+                }
+                i+=1;
+            }
+        }
+
+        return {construir,i};
+
+    }
+
+    //----------------------------------------------------------------------------------------------------------------
+
+
     public async getallRar():Promise<Buffer>{
         
         const unitedEnt: UnitedEntity[]=await this.unitedRepository.find();
@@ -267,29 +480,6 @@ export class CoursesService {
         return zipBuffer;
     }
 
-    //no pagados todas las unidades
-    public async getallRarNoPaids():Promise<Buffer>{
-        
-        const unitedEnt: UnitedEntity[]=await this.unitedRepository.find();
-        if(!unitedEnt)throw new HttpException('error',409);
-
-        const resp: ResponsePdfUnited[]=[];
-
-        const zip: AdmZip= new AdmZip();
-     
-        for (let z = 211; z < unitedEnt.length; z++) {
-            console.log(z);
-            
-            const element= unitedEnt[z];
-            const {zipBuffer,nameUnidet}=await this.getPdfUnitedQrNoPaids(element.id);
-            zip.addFile(nameUnidet+'.zip',Buffer.alloc(zipBuffer.length, zipBuffer),'comentario gamp');
-        }
-
-        const zipBuffer: Buffer = zip.toBuffer();
-        
-        return zipBuffer;
-    }
-
     public async getPdfUnitedQr(id:number):Promise<{zipBuffer:Buffer,nameUnidet:string}>{
         if(isEmpty(id))throw new HttpException('No se envió la data',400);
 
@@ -323,42 +513,9 @@ export class CoursesService {
         return {zipBuffer,nameUnidet};
     }
 
-    //no pagados de una unidad
-    public async getPdfUnitedQrNoPaids(id:number):Promise<{zipBuffer:Buffer,nameUnidet:string}>{
-        if(isEmpty(id))throw new HttpException('No se envió la data',400);
-
-        const unitedEnt: UnitedEntity=await this.unitedRepository.findOne({
-            where:{id},
-            relations: ['course']
-        });
-        if(!unitedEnt)throw new HttpException('No existe un curso con ese id',409);
-
-        const resp: ResponsePdfUnited[]=[];
-
-        const zip: AdmZip= new AdmZip();
-
-        for (let z = 0; z < unitedEnt.course.length; z++) {
-            const element: CourseEntity= unitedEnt.course[z];
-            const {namePdf,pdf}=await this.getPdfACourseNoPaids(element.id);
-            zip.addFile(namePdf+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
-        }
-
-        //especiales añadido
-        /*for (let z = 0; z < unitedEnt.course.length; z++) {
-            const element: CourseEntity= unitedEnt.course[z];
-            const {namePdf,pdf}=await this.getPdfACourse(element.id);
-            zip.addFile(namePdf+z+'.pdf',Buffer.alloc(pdf.length, pdf),'comentario gamp');
-        }*/
-
-        const zipBuffer: Buffer = zip.toBuffer();
-
-        const nameUnidet=unitedEnt.schoolCode+'-'+unitedEnt.schoolName;
-        
-        return {zipBuffer,nameUnidet};
-    }
+    
 
     public async getPdfACourse(id:number):Promise<{pdf:Buffer,namePdf:string}>{
-        //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
         const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
         const page=await browser.newPage();
         page.setDefaultNavigationTimeout(0);
@@ -418,216 +575,6 @@ export class CoursesService {
         }
         construir+=`</tbody>
                 </table>`;
-
-                /*+'<tfoot>'
-                +'<tr>'
-                +'<th>Nro</th>'
-                +'<th>QR</th>'
-                +'<th>Rude</th>'
-                +'<th>Carnet</th>'
-                +'<th>Nombre</th>'
-                +'<th>Matricula</th>'
-                +'<th>QR</th>'
-                +'<th>Firma</th>'
-                +'</tr>'
-                +'</tfoot>'*/
-
-        let data=`<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>
-        <h3 style="text-align: center; margin-bottom: 0px;">${courseEnt.united.schoolCode} : ${courseEnt.united.schoolName}</h3>
-        <table id="puppeteer2"><thead>
-        <tr>
-        <th>Nivel : ${courseEnt.level}</th>
-        <th>Turno : ${courseEnt.turn}</th>
-        <th>${courseEnt.grade}</th>
-        <th>${courseEnt.group}</th>
-        </tr>
-        </thead>
-        <tbody>
-        </tbody>
-        <br>
-        ${construir}
-        <br>
-        <table id="puppeteer3"><thead>
-        <tr>
-        <th>Total beneficiarios pagados</th>
-        <th style="padding-right: 150px"></th>
-        </tr>
-        <tr>
-        <th>Total beneficiarios NO pagados</th>
-        <th style="padding-right: 150px"></th>
-        </tr>
-        </thead>
-        </table>
-        <br>
-        <p>Observaciones..........................................................
-        ..........................................................................
-        ..........................................................................
-        ..........................................................</p>
-        </body></html>`;
-        await page.setContent(data);
-        await page.evaluate(async () => {
-        const style = document.createElement('style');
-        style.type = 'text/css';
-        const content = `
-        #puppeteer {
-            font-family:"Times New Roman", Times, serif;
-            font-size:70%;
-            border-collapse: collapse;
-            width: 100%;
-        }
-        #puppeteer td {
-            border: 1px solid #ddd;
-        }
-        #puppeteer tbody:before {
-            content: "@";
-            display: block;
-            line-height: 1px;
-            color: transparent;
-        }
-        #puppeteer th {
-            padding-top: 8px;
-            padding-bottom: 8px;
-            text-align: left;
-            border: 1px solid black;
-        }
-
-        #puppeteer2 {
-            font-family:"Times New Roman", Times, serif;
-            border-collapse: collapse;
-            width: 100%;
-        }
-        #puppeteer2 td, #customers th {
-            border: 1px solid #ddd;
-        }
-        
-        #puppeteer2 th {
-            padding-top: 12px;
-            padding-bottom: 12px;
-            text-align: left;
-            border: 0px solid black;
-        }
-        #puppeteer3 {
-            font-family:"Times New Roman", Times, serif;
-            font-size:70%;
-            border-collapse: collapse;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        #puppeteer3 td, #customers th {
-            border: 1px solid #ddd;
-        }
-        #puppeteer3 th {
-            padding-top: 8px;
-            padding-bottom: 8px;
-            text-align: left;
-            border: 1px solid black;
-        }
-        `;
-        style.appendChild(document.createTextNode(content));
-        const promise = new Promise((resolve, reject) => {
-            style.onload = resolve;
-            style.onerror = reject;
-        });
-        document.head.appendChild(style);
-        await promise;
-        });
-        const pdf=await page.pdf({
-            landscape:true,
-            printBackground: true,
-            width:'216mm',
-            height:'330mm',
-            margin: {
-                left: '50',
-                right: '10',
-                top: '20',
-                bottom: '10'
-            },
-        
-        });
-
-        await browser.close();
-
-        const namePdf: string=courseEnt.level.substr(0,courseEnt.level.indexOf(' '))+'-'+courseEnt.turn+'-'+courseEnt.grade.charAt(courseEnt.grade.length-1)+'° '+courseEnt.group.charAt(courseEnt.group.length-1);
-        
-        return {pdf,namePdf};
-
-    }
-
-    //no pagados de un curso
-    private async getPdfACourseNoPaids(id:number):Promise<{pdf:Buffer,namePdf:string}>{
-        //<img id='barcode' src="https://api.qrserver.com/v1/create-qr-code/?data=hola&amp;size=100x100" alt="" title="HELLO" width="50" height="50" />
-        const browser=await puppeteer.launch({args: ['--no-sandbox','--disable-setuid-sandbox']});
-        const page=await browser.newPage();
-        page.setDefaultNavigationTimeout(0);
-        const courseEnt: CourseEntity=await this.courseRepository.findOne({
-            where:{id},
-            relations: ['united','student']
-        });
-
-        let construir='<table id="puppeteer"><thead>'
-                +'<tr>'
-                +'<th>Nro</th>'
-                +'<th>QR</th>'
-                +'<th>Rude</th>'
-                +'<th>QR</th>'
-                +'<th>Carnet</th>'
-                +'<th>Nombre</th>'
-                +'<th>Matricula</th>'
-                +'<th style="padding-right: 250px">Nombre tutor</th>'
-                +'<th style="padding-right: 70px">CI tutor</th>'
-                +'<th style="padding-right: 50px">Firma tutor</th>'
-                +'</tr>'
-                +'</thead>'
-                +'<tbody>';
-        let countNumeration=1;
-        for (let z = 0; z < courseEnt.student.length; z++) {
-            const element = courseEnt.student[z];
-            if(element.registration=='EFECTIVO'&&!element.paid){
-                if(countNumeration%2!=0){
-                    construir+='<tr>'
-                    +'<td>'+(countNumeration)+'</td>'
-                    +'<td><img style="margin-bottom:-3px" src="'+(await this.createQR(element.rude))+'" width="30" height="30" /></td>'
-                    +'<td>'+element.rude+'</td>'
-                    +'<td></td>'
-                    +'<td>'+element.identification+'</td>'
-                    +'<td>'+element.name+'</td>'
-                    +'<td>'+element.registration+'</td>'
-                    +'<td></td>'
-                    +'<td></td>'
-                    +'<td></td>'
-                    +'</tr>';
-                }else{
-                    construir+=`<tr>
-                    <td>${(countNumeration)}</td>
-                    <td></td>
-                    <td>${element.rude}</td>
-                    <td><img style="margin-bottom:-3px" src="${(await this.createQR(element.rude))}" width="30" height="30" /></td>
-                    <td>${element.identification}</td>
-                    <td>${element.name}</td>
-                    <td>${element.registration}</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    </tr>`;
-                }
-                countNumeration+=1;
-            }
-        }
-        construir+=`</tbody>
-                </table>`;
-
-                /*+'<tfoot>'
-                +'<tr>'
-                +'<th>Nro</th>'
-                +'<th>QR</th>'
-                +'<th>Rude</th>'
-                +'<th>Carnet</th>'
-                +'<th>Nombre</th>'
-                +'<th>Matricula</th>'
-                +'<th>QR</th>'
-                +'<th>Firma</th>'
-                +'</tr>'
-                +'</tfoot>'*/
 
         let data=`<!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title></title></head><body>
         <h3 style="text-align: center; margin-bottom: 0px;">${courseEnt.united.schoolCode} : ${courseEnt.united.schoolName}</h3>
@@ -886,20 +833,20 @@ export class CoursesService {
         if(!userEnt)throw new HttpException('Error al encontrar el usuario',409);
  
         for (let z = 0; z < data.length; z++) {
-            const element = data[z];
-            const studentEnt=await this.studentRepository.findOne({
+            const element: SendingDataDto = data[z];
+            const studentEnt: StudentEntity=await this.studentRepository.findOne({
                 where:{id:element.idStudent,rude:element.rude},
             });
-            const sendEnt=new SendingsEntity();
-            sendEnt.rude=element.rude;
-            sendEnt.user=userEnt;
-            sendEnt.stateStudent=false;
-            await this.sendingsRepository.save(sendEnt);
             if(studentEnt){
-                this.studentRepository.update(studentEnt.id,{paid:false,send:sendEnt});
+                const sendEnt: SendingsEntity=new SendingsEntity();
+                sendEnt.rude=element.rude;
+                sendEnt.user=userEnt;
+                sendEnt.student=studentEnt;
+                sendEnt.stateStudent=false;
+                await this.sendingsRepository.save(sendEnt);
+                await this.studentRepository.update(studentEnt.id,{paid:false});
             }
         }
-
         return true;
     }
 

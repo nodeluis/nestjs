@@ -1,0 +1,20 @@
+import {MigrationInterface, QueryRunner} from "typeorm";
+
+export class init1632317934220 implements MigrationInterface {
+    name = 'init1632317934220'
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`ALTER TABLE "public"."student_entity" DROP CONSTRAINT "FK_53213c2de520357126f335a759e"`);
+        await queryRunner.query(`ALTER TABLE "public"."student_entity" DROP COLUMN "sendId"`);
+        await queryRunner.query(`ALTER TABLE "public"."sendings_entity" ADD "studentId" integer`);
+        await queryRunner.query(`ALTER TABLE "public"."sendings_entity" ADD CONSTRAINT "FK_3d77005b48dccadb4ff85c0e30e" FOREIGN KEY ("studentId") REFERENCES "student_entity"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`ALTER TABLE "public"."sendings_entity" DROP CONSTRAINT "FK_3d77005b48dccadb4ff85c0e30e"`);
+        await queryRunner.query(`ALTER TABLE "public"."sendings_entity" DROP COLUMN "studentId"`);
+        await queryRunner.query(`ALTER TABLE "public"."student_entity" ADD "sendId" integer`);
+        await queryRunner.query(`ALTER TABLE "public"."student_entity" ADD CONSTRAINT "FK_53213c2de520357126f335a759e" FOREIGN KEY ("sendId") REFERENCES "sendings_entity"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    }
+
+}

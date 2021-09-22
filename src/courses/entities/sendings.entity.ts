@@ -17,8 +17,8 @@ export class SendingsEntity implements SendingProccessInterface{
     @Column()
     stateStudent: boolean;
 
-    @OneToMany(() => StudentEntity, student => student.send)
-    student: StudentEntity[];
+    @ManyToOne(() => StudentEntity, student => student.send)
+    student: StudentEntity;
 
     @ManyToOne(() => UserEntity, user => user.send)
     user: UserEntity;

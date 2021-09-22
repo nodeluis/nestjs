@@ -183,17 +183,15 @@ export class CoursesController {
     }
 
 
-    @Get('allRar')
+    @Get('allRarNoP')
     async getAllZipNoPaids(@Res() res: Response,): Promise<void>{
         try {
             const result=await this.coursesService.getallRarNoPaids();
             res.set({
-                // pdf
                 'Content-Type': 'application/zip',
                 'Content-Disposition': 'attachment; filename=todos_los_colegios_con_estudiantes_no_pagados.zip',
                 'Content-Length': result.length,
-          
-                // prevent cache
+                
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': 0,
